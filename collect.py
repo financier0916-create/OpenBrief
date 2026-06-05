@@ -47,26 +47,31 @@ def recent_business_days(n, base=None):
 INDEX_CODES = {"코스피": "1001", "코스닥": "2001"}
 
 def collect_indices_and_charts(last_day):
-    from pykrx import stock
+    """코스피/코스닥 지수 last/change + 10Y 일봉 차트.
+    2025-12 KRX 로그인 전환으로 pykrx 무인 수집이 막혀, 지수/차트는 Yahoo(^KS11/^KQ11)로 수집."""
+    import yfinance as yf
     indices, charts = {}, {}
-    frm = (datetime.strptime(last_day, "%Y%m%d") - timedelta(days=3700)).strftime("%Y%m%d")
-    key_map = {"코스피": "kospi", "코스닥": "kosdaq"}
-    for name, code in INDEX_CODES.items():
+    spec = {"코스피": ("^KS11", "kospi"), "코스닥": ("^KQ11", "kosdaq")}
+    for name, (tk, key) in spec.items():
         try:
-            df = stock.get_index_ohlcv(frm, last_day, code).dropna()
+            df = yf.Ticker(tk).history(period="10y", auto_adjust=False).dropna(subset=["Close"])
             if df.empty: raise ValueError("빈 데이터")
-            closes = df["종가"]
+            closes = df["Close"]
             lastv = float(closes.iloc[-1]); prev = float(closes.iloc[-2]) if len(closes) > 1 else lastv
             chg = (lastv / prev - 1) * 100 if prev else None
-            indices[key_map[name]] = {"name": name, "last": round(lastv, 2),
-                                      "change_pct": round(chg, 2) if chg is not None else None}
-            charts[name] = {"name": f"{name} 지수",
-                            "ohlcv": [[ts_ms(idx), round(float(r["시가"]), 2), round(float(r["고가"]), 2),
-                                       round(float(r["저가"]), 2), round(float(r["종가"]), 2), int(r["거래량"])]
-                                      for idx, r in df.iterrows()]}
-            ok(f"지수/차트 {name} ({len(charts[name]['ohlcv'])}봉)")
+            indices[key] = {"name": name, "last": round(lastv, 2),
+                            "change_pct": round(chg, 2) if chg is not None else None}
+            ohlcv = []
+            for idx, r in df.iterrows():
+                v = r.get("Volume", 0)
+                try: v = int(v) if v == v else 0   # NaN 방지
+                except Exception: v = 0
+                ohlcv.append([ts_ms(idx), round(float(r["Open"]), 2), round(float(r["High"]), 2),
+                              round(float(r["Low"]), 2), round(float(r["Close"]), 2), v])
+            charts[name] = {"name": f"{name} 지수", "ohlcv": ohlcv}
+            ok(f"지수/차트 {name} ({len(ohlcv)}봉)")
         except Exception as e:
-            indices[key_map[name]] = None; fail(f"지수 {name}", e)
+            indices[key] = None; fail(f"지수 {name}", e)
     return indices, charts
 
 # 글로벌 --------------------------------------------------------------------
