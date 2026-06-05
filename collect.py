@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 KR Premarket Terminal - 데이터 수집기
-지수/차트/미국시장: Yahoo(yfinance). 특징주/업종: KRX OpenAPI(키 필요).
+지수/차트/미국시장: Yahoo(yfinance). 특징주(시총 포함)/업종: KRX OpenAPI(키 필요).
 수급: KRX OpenAPI 미제공. 뉴스: RSS(중요도 랭킹). 실적: config/earnings.json(선택).
 """
 import os, sys, json, re, html, argparse
@@ -136,6 +136,21 @@ def collect_movers(last_day, prev_day, key, min_value=1_000_000_000):
                 "mcap_kospi": mcap_top("kospi"), "mcap_kosdaq": mcap_top("kosdaq")}
     except Exception as e:
         fail("특징주", e); return None
+
+SECTORS = ["전기전자", "화학", "의약품", "운수장비", "금융업", "철강금속", "서비스업", "건설업", "기계"]
+def collect_sectors(last_day, key):
+    if not key:
+        fail("업종", "KRX_API_KEY 없음"); return None
+    try:
+        rows = _krx("idx", "kospi_dd_trd", last_day, key)
+        bynm = {(r.get("IDX_NM") or "").strip(): _f(r.get("FLUC_RT")) for r in rows}
+        out = []
+        for name in SECTORS:
+            chg = next((v for k, v in bynm.items() if name in k), None)
+            out.append({"name": name, "change_pct": round(chg, 2) if chg is not None else None})
+        ok("업종 히트맵"); return out
+    except Exception as e:
+        fail("업종", e); return None
 
 DEFAULT_FEEDS = [
     ("연합뉴스 경제", "https://www.yna.co.kr/rss/economy.xml"),
