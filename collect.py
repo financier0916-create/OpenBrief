@@ -32,15 +32,15 @@ def ts_ms(d):
 
 # --------------------------------------------------------------------------
 def recent_business_days(n, base=None):
-    """base(KST date) 이하의 최근 거래일 n개(최신순). 장전 실행 가정: base=어제."""
-    from pykrx import stock
+    """base(KST date) 이하의 최근 평일 n개(최신순). KRX 의존 없이 주말만 건너뜀.
+    (공휴일은 야후가 자동으로 직전 거래일 데이터를 주므로 별도 처리 불필요)"""
     if base is None:
         base = (datetime.now(KST) - timedelta(days=1)).date()
     out, cur = [], base
-    for _ in range(n):
-        bd = stock.get_nearest_business_day_in_a_week(cur.strftime("%Y%m%d"))
-        out.append(bd)
-        cur = datetime.strptime(bd, "%Y%m%d").date() - timedelta(days=1)
+    while len(out) < n:
+        if cur.weekday() < 5:  # 0=월 ... 4=금
+            out.append(cur.strftime("%Y%m%d"))
+        cur -= timedelta(days=1)
     return out
 
 # 지수 + 차트 ----------------------------------------------------------------
@@ -220,9 +220,8 @@ def main():
 
     try:
         if args.date:
-            from pykrx import stock
-            last = stock.get_nearest_business_day_in_a_week(args.date)
-            prev = recent_business_days(2, base=datetime.strptime(last, "%Y%m%d").date() - timedelta(days=1))[0]
+            last = args.date
+            prev = recent_business_days(1, base=datetime.strptime(last, "%Y%m%d").date() - timedelta(days=1))[0]
         else:
             last, prev = recent_business_days(2)
         log("INFO", f"기준 거래일={last}, 전거래일={prev}")
