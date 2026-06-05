@@ -1,0 +1,56 @@
+name: Daily Premarket Snapshot
+
+# 매일 07:40 KST(=UTC 22:40)에 데이터 수집 후 GitHub Pages 배포.
+# 한국은 서머타임이 없어 KST는 항상 UTC+9 입니다.
+on:
+  schedule:
+    - cron: '40 22 * * *'     # 07:40 KST. 필요하면 분/시만 바꾸세요.
+  workflow_dispatch:           # Actions 탭에서 수동 실행 버튼
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Collect snapshot.json
+        run: python collect.py --out snapshot.json
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp snapshot.json _site/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
