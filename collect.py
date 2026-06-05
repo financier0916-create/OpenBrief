@@ -3,7 +3,7 @@
 """
 KR Premarket Terminal - 데이터 수집기
 지수/차트/미국시장: Yahoo(yfinance). 특징주/업종: KRX OpenAPI(키 필요).
-수급: KRX OpenAPI 미제공. 뉴스: RSS. 실적: config/earnings.json(선택).
+수급: KRX OpenAPI 미제공. 뉴스: RSS(중요도 랭킹). 실적: config/earnings.json(선택).
 """
 import os, sys, json, re, html, argparse
 from datetime import datetime, timedelta, timezone
@@ -144,30 +144,61 @@ def collect_sectors(last_day, key):
 
 DEFAULT_FEEDS = [
     ("연합뉴스 경제", "https://www.yna.co.kr/rss/economy.xml"),
+    ("연합뉴스 증권", "https://www.yna.co.kr/rss/market.xml"),
     ("매일경제 증권", "https://www.mk.co.kr/rss/50200011/"),
+    ("매일경제 경제", "https://www.mk.co.kr/rss/30100041/"),
     ("한국경제 증권", "https://www.hankyung.com/feed/finance"),
+    ("한국경제 경제", "https://www.hankyung.com/feed/economy"),
 ]
+NEWS_KEYWORDS = {
+    5: ["금리", "기준금리", "FOMC", "연준", "Fed", "환율", "원/달러", "원달러", "고용", "물가", "CPI", "GDP", "한국은행", "긴축", "인하"],
+    4: ["코스피", "코스닥", "반도체", "삼성전자", "SK하이닉스", "외국인", "수급", "실적", "어닝", "관세", "수출"],
+    3: ["엔비디아", "AI", "HBM", "테슬라", "애플", "유가", "국채", "달러", "증시", "사상최고", "급락", "급등", "상한가", "하한가"],
+    2: ["배당", "자사주", "공매도", "IPO", "상장", "인수", "합병", "M&A", "투자", "전망", "목표주가"],
+}
+NEWS_NOISE = ["인사", "부고", "동정", "포토", "날씨", "운세", "사설", "칼럼", "기고", "당첨", "이벤트", "행사", "예고", "방송"]
+
 def _clean(t): return html.unescape(re.sub(r"<[^>]+>", "", t or "")).strip()
-def collect_news(limit=8):
+
+def _news_score(title, summary):
+    text = (title or "") + " " + (summary or "")
+    score = 0
+    for w, words in NEWS_KEYWORDS.items():
+        for kw in words:
+            if kw in text: score += w
+    for kw in NEWS_NOISE:
+        if kw in title: score -= 6
+    if "속보" in title or "[속보]" in title: score += 2
+    return score
+
+def collect_news(limit=10):
     import feedparser
     feeds = DEFAULT_FEEDS
     cfg = os.path.join("config", "news_feeds.json")
     if os.path.exists(cfg):
         try: feeds = [(f["source"], f["url"]) for f in json.load(open(cfg, encoding="utf-8"))]
         except Exception as e: fail("news_feeds.json", e)
-    items = []
+    items, seen = [], set()
     for src, url in feeds:
         try:
-            for e in feedparser.parse(url).entries[:limit]:
+            for e in feedparser.parse(url).entries[:25]:
+                title = _clean(e.get("title")); summary = _clean(e.get("summary"))
+                if not title: continue
+                k = re.sub(r"[^가-힣A-Za-z0-9]", "", title)[:24]
+                if k in seen: continue
+                seen.add(k)
                 pub = datetime(*e.published_parsed[:6]).strftime("%m-%d %H:%M") if getattr(e, "published_parsed", None) else ""
-                items.append({"title": _clean(e.get("title")), "summary": _clean(e.get("summary"))[:120],
-                              "source": src, "url": e.get("link"), "published_at": pub, "_s": e.get("published_parsed")})
+                items.append({"title": title, "summary": summary[:120], "source": src,
+                              "url": e.get("link"), "published_at": pub,
+                              "_score": _news_score(title, summary), "_s": e.get("published_parsed")})
         except Exception as ex:
             fail(f"뉴스 {src}", ex)
     if not items: return None
-    items.sort(key=lambda x: x.get("_s") or (), reverse=True)
-    for it in items: it.pop("_s", None)
-    ok(f"뉴스 {len(items)}건"); return items[:limit]
+    items.sort(key=lambda x: (x["_score"], x.get("_s") or ()), reverse=True)
+    top = items[:limit]
+    top.sort(key=lambda x: x.get("_s") or (), reverse=True)
+    for it in top: it.pop("_s", None); it.pop("_score", None)
+    ok(f"뉴스 {len(top)}건 (후보 {len(items)})"); return top
 
 def load_earnings():
     path = os.path.join("config", "earnings.json")
