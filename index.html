@@ -77,6 +77,7 @@ td{font-family:var(--mono);font-size:12px;text-align:right;padding:5px 6px;borde
 td:first-child{text-align:left;font-family:var(--sans);color:var(--text2)}
 tr:hover td{background:var(--panel2)}
 .tk{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.rk{display:inline-block;min-width:15px;color:var(--accent2);font-family:var(--mono);font-size:10px;font-weight:600;margin-right:3px}
 
 .widget-slot{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
 .widget-slot.nightbox{flex:0 0 auto;height:240px}
@@ -124,7 +125,7 @@ canvas{display:block;width:100%;height:100%;cursor:crosshair}
 
 <div id="app">
   <div class="topbar">
-    <div class="brand"><span class="logo">KR.PREMARKET</span><span class="sub">장전 브리핑 터미널 · 전일 마감 기준</span></div>
+    <div class="brand"><span class="logo">OPEN BRIEF</span><span class="sub">장전 브리핑 터미널 · 전일 마감 기준</span></div>
     <div class="asof">기준시각 <b id="asof">—</b></div>
     <div class="copyright" id="copyright">© 2026 MISTERDOLLAR. All rights reserved.</div>
   </div>
@@ -207,7 +208,9 @@ const SAMPLE={
   sectors:[{name:"전기전자",change_pct:1.62},{name:"화학",change_pct:-0.94},{name:"의약품",change_pct:0.31},{name:"운수장비",change_pct:0.72},{name:"서비스업",change_pct:-0.18},{name:"금융업",change_pct:0.44},{name:"철강금속",change_pct:-1.21},{name:"건설업",change_pct:0.55},{name:"기계",change_pct:1.15}],
   movers:{
     gainers:[{ticker:"096770",name:"SK이노베이션",last:118500,change_pct:14.8,volume:5200000},{ticker:"247540",name:"에코프로비엠",last:182000,change_pct:11.2,volume:3100000},{ticker:"086520",name:"에코프로",last:92400,change_pct:9.7,volume:4800000},{ticker:"042700",name:"한미반도체",last:138000,change_pct:8.3,volume:2600000},{ticker:"012450",name:"한화에어로스페이스",last:286000,change_pct:7.1,volume:980000}],
-    losers:[{ticker:"068270",name:"셀트리온",last:178000,change_pct:-8.9,volume:2200000},{ticker:"207940",name:"삼성바이오로직스",last:742000,change_pct:-6.2,volume:240000},{ticker:"035720",name:"카카오",last:38900,change_pct:-5.4,volume:6800000},{ticker:"259960",name:"크래프톤",last:298000,change_pct:-4.8,volume:410000},{ticker:"036570",name:"엔씨소프트",last:184500,change_pct:-4.1,volume:520000}]
+    losers:[{ticker:"068270",name:"셀트리온",last:178000,change_pct:-8.9,volume:2200000},{ticker:"207940",name:"삼성바이오로직스",last:742000,change_pct:-6.2,volume:240000},{ticker:"035720",name:"카카오",last:38900,change_pct:-5.4,volume:6800000},{ticker:"259960",name:"크래프톤",last:298000,change_pct:-4.8,volume:410000},{ticker:"036570",name:"엔씨소프트",last:184500,change_pct:-4.1,volume:520000}],
+    mcap_kospi:[{ticker:"005930",name:"삼성전자",last:74200,change_pct:1.2,mktcap:443000000000000},{ticker:"000660",name:"SK하이닉스",last:198500,change_pct:2.8,mktcap:144000000000000},{ticker:"373220",name:"LG에너지솔루션",last:382000,change_pct:-1.1,mktcap:89000000000000},{ticker:"207940",name:"삼성바이오로직스",last:742000,change_pct:-6.2,mktcap:52000000000000},{ticker:"005380",name:"현대차",last:241000,change_pct:0.4,mktcap:50000000000000}],
+    mcap_kosdaq:[{ticker:"247540",name:"에코프로비엠",last:182000,change_pct:11.2,mktcap:17800000000000},{ticker:"086520",name:"에코프로",last:92400,change_pct:9.7,mktcap:12300000000000},{ticker:"196170",name:"알테오젠",last:312000,change_pct:1.5,mktcap:11200000000000},{ticker:"328130",name:"루닛",last:48500,change_pct:-2.1,mktcap:980000000000},{ticker:"068760",name:"셀트리온제약",last:78900,change_pct:0.8,mktcap:870000000000}]
   },
   news:[{title:"美 반도체株 급등에 SOX 1.4%↑… 삼성·하이닉스 강세 기대",summary:"엔비디아 실적 호조와 HBM 수요 전망에 필라델피아 반도체지수가 강세 마감.",source:"샘플경제",url:"#",published_at:"06-03 06:40"},{title:"원/달러 1370원대 등락… 외국인 현물 매도 지속",summary:"환율 상단이 막히지 않으면 외국인 순매수 전환이 지연될 수 있다는 분석.",source:"샘플경제",url:"#",published_at:"06-03 05:10"}],
   charts:{"코스피":{name:"코스피 지수",ohlcv:genOHLC(7,T0,9.4,1900,0.0003,0.011)},"코스닥":{name:"코스닥 지수",ohlcv:genOHLC(19,T0,9.4,650,0.00012,0.015)}}
@@ -222,6 +225,8 @@ const PERIODS=[["1M",1],["3M",3],["6M",6],["1Y",12],["2Y",24],["5Y",60],["10Y",1
 const INTERVALS=[["1D","D"],["1W","W"],["1M","M"]];
 let state={sym:null,period:12,interval:"D",chartType:"area"};
 let moverTab='gainers';
+let mcapMkt='kospi';
+function wonCap(n){if(!has(n))return '—';const jo=n/1e12;if(jo>=1)return jo.toFixed(1)+'조';return Math.round(n/1e8).toLocaleString()+'억';}
 
 async function load(){
   try{const r=await fetch('snapshot.json',{cache:'no-store'});if(!r.ok)throw 0;DATA=await r.json();DEMO=false;}
@@ -255,9 +260,20 @@ function renderHeat(){
 function renderMovers(){
   const m=DATA.movers;const seg=$('#moverSeg');
   if(moverTab==='volume')moverTab='gainers';
-  seg.innerHTML=[['gainers','급등'],['losers','급락']].map(([k,l])=>`<button data-k="${k}" class="${k===moverTab?'on':''}">${l}</button>`).join('');
+  seg.innerHTML=[['gainers','급등'],['losers','급락'],['mcap','시총']].map(([k,l])=>`<button data-k="${k}" class="${k===moverTab?'on':''}">${l}</button>`).join('');
   seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{moverTab=b.dataset.k;renderMovers();});
-  if(!has(m)||!has(m[moverTab])){$('#movers').innerHTML=ND;return;}
+  if(!has(m)){$('#movers').innerHTML=ND;return;}
+
+  if(moverTab==='mcap'){
+    const key=mcapMkt==='kospi'?'mcap_kospi':'mcap_kosdaq';const rows=m[key];
+    let sub=`<div class="seg sm" style="margin:0 0 8px">`+[['kospi','코스피'],['kosdaq','코스닥']].map(([k,l])=>`<button data-mk="${k}" class="${k===mcapMkt?'on':''}">${l}</button>`).join('')+`</div>`;
+    $('#movers').innerHTML=sub+(has(rows)?`<table><thead><tr><th>종목</th><th>종가</th><th>등락</th><th>시가총액</th></tr></thead><tbody>`+
+      rows.map((r,i)=>`<tr><td><span class="rk">${i+1}</span>${r.name}<div class="tk">${r.ticker||''}</div></td><td>${num(r.last)}</td><td>${pct(r.change_pct)}</td><td><span class="mono" style="color:var(--accent2)">${wonCap(r.mktcap)}</span></td></tr>`).join('')+`</tbody></table>`:ND);
+    $('#movers').querySelectorAll('button[data-mk]').forEach(b=>b.onclick=()=>{mcapMkt=b.dataset.mk;renderMovers();});
+    return;
+  }
+
+  if(!has(m[moverTab])){$('#movers').innerHTML=ND;return;}
   let h=`<table><thead><tr><th>종목</th><th>종가</th><th>등락</th><th>거래량</th></tr></thead><tbody>`;
   h+=m[moverTab].map(r=>`<tr><td>${r.name}<div class="tk">${r.ticker||''}</div></td><td>${num(r.last)}</td><td>${pct(r.change_pct)}</td><td>${has(r.volume)?fmt(Math.round(r.volume/1000))+'K':ND}</td></tr>`).join('');
   $('#movers').innerHTML=h+'</tbody></table>';
