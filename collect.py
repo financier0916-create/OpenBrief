@@ -80,7 +80,7 @@ def collect_global():
             g[key] = None; fail(f"글로벌 {name}", e)
     return g
 
-KRX_BASE = "https://openapi.krx.co.kr/svc/apis"
+KRX_BASE = "http://data-dbg.krx.co.kr/svc/apis"
 def _krx(cat, api, basDd, key):
     import requests
     r = requests.get(f"{KRX_BASE}/{cat}/{api}", headers={"AUTH_KEY": key},
