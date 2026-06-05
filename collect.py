@@ -1,22 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-KR Premarket Terminal — 데이터 수집기 (approach a: 무료 라이브러리)
-
-snapshot.json 을 생성합니다. 프론트엔드(index.html)가 이 파일을 읽습니다.
-원칙: 데이터를 가져오지 못하면 가짜로 채우지 않고 null 로 둡니다 → 화면에 "데이터 없음".
-
-수집 항목: 지수/차트(코스피·코스닥), 수급(외인·기관·개인), 전일 특징주,
-           업종 히트맵, 글로벌(미국지수·SOX·금리·달러·WTI·환율·EWY), 뉴스.
-화면 전용(수집 안 함): 오늘 일정·야간선물 → index.html 의 Investing.com 위젯.
-실적/컨센서스 → config/earnings.json 직접 입력(선택).
-
-사용법:
-    python collect.py
-    python collect.py --date 20260602
-    python collect.py --out snapshot.json
-
-설치: pip install -r requirements.txt
+KR Premarket Terminal - 데이터 수집기 (approach a: 무료 라이브러리)
+지수/차트는 Yahoo(^KS11/^KQ11). 수급/특징주/업종은 KRX(로그인 필요 시 데이터 없음).
 """
 import os, sys, json, re, html, argparse
 from datetime import datetime, timedelta, timezone
@@ -30,25 +16,19 @@ def fail(name, e): log("FAIL", f"{name}: {e}")
 def ts_ms(d):
     return int(datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp() * 1000)
 
-# --------------------------------------------------------------------------
 def recent_business_days(n, base=None):
-    """base(KST date) 이하의 최근 평일 n개(최신순). KRX 의존 없이 주말만 건너뜀.
-    (공휴일은 야후가 자동으로 직전 거래일 데이터를 주므로 별도 처리 불필요)"""
+    """base(KST date) 이하의 최근 평일 n개(최신순). KRX 의존 없이 주말만 건너뜀."""
     if base is None:
         base = (datetime.now(KST) - timedelta(days=1)).date()
     out, cur = [], base
     while len(out) < n:
-        if cur.weekday() < 5:  # 0=월 ... 4=금
+        if cur.weekday() < 5:
             out.append(cur.strftime("%Y%m%d"))
         cur -= timedelta(days=1)
     return out
 
-# 지수 + 차트 ----------------------------------------------------------------
-INDEX_CODES = {"코스피": "1001", "코스닥": "2001"}
-
 def collect_indices_and_charts(last_day):
-    """코스피/코스닥 지수 last/change + 10Y 일봉 차트.
-    2025-12 KRX 로그인 전환으로 pykrx 무인 수집이 막혀, 지수/차트는 Yahoo(^KS11/^KQ11)로 수집."""
+    """코스피/코스닥 지수 + 10Y 차트 - Yahoo(^KS11/^KQ11)."""
     import yfinance as yf
     indices, charts = {}, {}
     spec = {"코스피": ("^KS11", "kospi"), "코스닥": ("^KQ11", "kosdaq")}
@@ -64,7 +44,7 @@ def collect_indices_and_charts(last_day):
             ohlcv = []
             for idx, r in df.iterrows():
                 v = r.get("Volume", 0)
-                try: v = int(v) if v == v else 0   # NaN 방지
+                try: v = int(v) if v == v else 0
                 except Exception: v = 0
                 ohlcv.append([ts_ms(idx), round(float(r["Open"]), 2), round(float(r["High"]), 2),
                               round(float(r["Low"]), 2), round(float(r["Close"]), 2), v])
@@ -74,7 +54,6 @@ def collect_indices_and_charts(last_day):
             indices[key] = None; fail(f"지수 {name}", e)
     return indices, charts
 
-# 글로벌 --------------------------------------------------------------------
 GLOBAL_TICKERS = {
     "sp500":  ("^GSPC",    "S&P500",     None),
     "nasdaq": ("^IXIC",    "나스닥",      None),
@@ -101,10 +80,9 @@ def collect_global():
             g[key] = entry; ok(f"글로벌 {name}")
         except Exception as e:
             g[key] = None; fail(f"글로벌 {name}", e)
-    g["vkospi"] = None   # 무료 안정 소스 없음 → 데이터 없음
+    g["vkospi"] = None
     return g
 
-# 수급 (외인/기관/개인 순매수, 억원) ----------------------------------------
 def _net_by_investor(day, market):
     from pykrx import stock
     net = stock.get_market_trading_value_by_investor(day, day, market)["순매수"]
@@ -125,7 +103,6 @@ def collect_flows(last_day):
             flows[mkt_name] = None; fail(f"수급 {mkt}", e)
     return flows
 
-# 전일 특징주 ----------------------------------------------------------------
 def collect_movers(last_day, prev_day, min_value=1_000_000_000):
     from pykrx import stock
     import pandas as pd
@@ -156,7 +133,6 @@ def collect_movers(last_day, prev_day, min_value=1_000_000_000):
     except Exception as e:
         fail("특징주", e); return None
 
-# 업종 히트맵 (실제 KRX KOSPI 업종지수) --------------------------------------
 SECTOR_CODES = {"전기전자": "1013", "화학": "1008", "의약품": "1009", "운수장비": "1015",
                 "금융업": "1021", "철강금속": "1011", "서비스업": "1026", "건설업": "1018", "기계": "1012"}
 
@@ -172,7 +148,6 @@ def collect_sectors(last_day):
             out.append({"name": name, "change_pct": None}); fail(f"업종 {name}", e)
     ok("업종 히트맵"); return out or None
 
-# 뉴스 (RSS) ----------------------------------------------------------------
 DEFAULT_FEEDS = [
     ("연합뉴스 경제", "https://www.yna.co.kr/rss/economy.xml"),
     ("매일경제 증권", "https://www.mk.co.kr/rss/50200011/"),
@@ -201,7 +176,6 @@ def collect_news(limit=8):
     for it in items: it.pop("_s", None)
     ok(f"뉴스 {len(items)}건"); return items[:limit]
 
-# 실적 (수동 큐레이션 — 선택) -----------------------------------------------
 def load_earnings():
     path = os.path.join("config", "earnings.json")
     if os.path.exists(path):
@@ -211,10 +185,9 @@ def load_earnings():
             fail("실적", e)
     log("SKIP", f"실적: {path} 없음 → 데이터 없음"); return None, "없음"
 
-# main ----------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--date", help="기준 거래일 YYYYMMDD (기본: 최근 거래일)")
+    ap.add_argument("--date")
     ap.add_argument("--out", default="snapshot.json")
     args = ap.parse_args()
 
