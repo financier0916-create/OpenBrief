@@ -101,8 +101,9 @@ def collect_movers(last_day, prev_day, key, min_value=1_000_000_000):
         fail("특징주", "KRX_API_KEY 없음"); return None
     try:
         today, prev = {}, {}
-        for api in ("stk_bydd_trd", "ksq_bydd_trd"):
-            for row in _krx("sto", api, last_day, key): today[row.get("ISU_CD")] = row
+        for api, mkt in (("stk_bydd_trd", "kospi"), ("ksq_bydd_trd", "kosdaq")):
+            for row in _krx("sto", api, last_day, key):
+                row["_mkt"] = mkt; today[row.get("ISU_CD")] = row
             for row in _krx("sto", api, prev_day, key): prev[row.get("ISU_CD")] = row
         recs = []
         for code, row in today.items():
@@ -115,35 +116,26 @@ def collect_movers(last_day, prev_day, key, min_value=1_000_000_000):
         if not recs: raise ValueError("빈 데이터")
         g = sorted(recs, key=lambda r: r["change_pct"] if r["change_pct"] is not None else -1e9, reverse=True)[:8]
         l = sorted(recs, key=lambda r: r["change_pct"] if r["change_pct"] is not None else 1e9)[:8]
-        v = sorted([r for r in recs if r["vol_ratio"]], key=lambda r: r["vol_ratio"], reverse=True)[:8]
-        def clean(rows, vol_mode):
+        def clean(rows):
+            return [{"ticker": r["ticker"], "name": r["name"], "last": r["last"],
+                     "change_pct": round(r["change_pct"], 2) if r["change_pct"] is not None else None,
+                     "volume": r["volume"]} for r in rows]
+        def mcap_top(mkt):
+            rows = [r for r in today.values() if r.get("_mkt") == mkt and _f(r.get("MKTCAP"))]
+            rows.sort(key=lambda r: _f(r.get("MKTCAP")), reverse=True)
             out = []
-            for r in rows:
-                it = {"ticker": r["ticker"], "name": r["name"], "last": r["last"],
-                      "change_pct": round(r["change_pct"], 2) if r["change_pct"] is not None else None}
-                if vol_mode: it["vol_ratio"] = round(r["vol_ratio"], 1)
-                else: it["volume"] = r["volume"]
-                out.append(it)
+            for r in rows[:10]:
+                fr = _f(r.get("FLUC_RT"))
+                out.append({"ticker": r.get("ISU_CD"), "name": r.get("ISU_NM"),
+                            "last": int(_f(r.get("TDD_CLSPRC")) or 0),
+                            "change_pct": round(fr, 2) if fr is not None else None,
+                            "mktcap": _f(r.get("MKTCAP"))})
             return out
         ok(f"특징주 (대상 {len(recs)}종목)")
-        return {"gainers": clean(g, False), "losers": clean(l, False), "volume": clean(v, True)}
+        return {"gainers": clean(g), "losers": clean(l),
+                "mcap_kospi": mcap_top("kospi"), "mcap_kosdaq": mcap_top("kosdaq")}
     except Exception as e:
         fail("특징주", e); return None
-
-SECTORS = ["전기전자", "화학", "의약품", "운수장비", "금융업", "철강금속", "서비스업", "건설업", "기계"]
-def collect_sectors(last_day, key):
-    if not key:
-        fail("업종", "KRX_API_KEY 없음"); return None
-    try:
-        rows = _krx("idx", "kospi_dd_trd", last_day, key)
-        bynm = {(r.get("IDX_NM") or "").strip(): _f(r.get("FLUC_RT")) for r in rows}
-        out = []
-        for name in SECTORS:
-            chg = next((v for k, v in bynm.items() if name in k), None)
-            out.append({"name": name, "change_pct": round(chg, 2) if chg is not None else None})
-        ok("업종 히트맵"); return out
-    except Exception as e:
-        fail("업종", e); return None
 
 DEFAULT_FEEDS = [
     ("연합뉴스 경제", "https://www.yna.co.kr/rss/economy.xml"),
