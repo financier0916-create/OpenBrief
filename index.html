@@ -42,6 +42,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:12
 .topbar .asof b{color:var(--accent)}
 
 .strip{display:flex;background:var(--head);overflow-x:auto;flex:1 1 auto;scrollbar-width:thin}
+.tickerrow{display:flex;align-items:stretch;background:#0a0e13;border-bottom:1px solid var(--border);flex:0 0 auto;overflow:hidden}
+.ticker-badge{display:flex;align-items:center;padding:4px 12px;border-right:1px solid var(--border2);font-family:var(--mono);font-size:9.5px;font-weight:600;color:var(--accent);white-space:nowrap;background:rgba(39,194,160,.06);flex:0 0 auto;z-index:2}
+.ticker{position:relative;flex:1 1 auto;overflow:hidden}
+.ti-track{display:inline-flex;align-items:center;white-space:nowrap;padding:5px 0;will-change:transform;animation:tickerMove 80s linear infinite}
+.ticker:hover .ti-track{animation-play-state:paused}
+@keyframes tickerMove{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+.ti{display:inline-flex;align-items:baseline;gap:6px;padding:0 14px;font-family:var(--mono);font-size:11.5px}
+.ti-rk{color:var(--accent2);font-weight:600;font-size:10px}
+.ti-nm{color:var(--text);font-family:var(--sans);font-weight:500}
+.ti-cap{color:var(--text2)}
+.ti-chg{font-size:10.5px} .ti-chg.up{color:var(--up)} .ti-chg.down{color:var(--down)} .ti-chg.flat{color:var(--muted)}
+.ti-sep{color:var(--faint)}
 .strip::-webkit-scrollbar{height:5px} .strip::-webkit-scrollbar-thumb{background:var(--border2)}
 .chip{display:flex;flex:1 1 0;flex-direction:column;gap:1px;padding:6px 14px;border-right:1px solid var(--border);white-space:nowrap;min-width:96px}
 .chip .lbl{font-size:9.5px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
@@ -77,7 +89,6 @@ td{font-family:var(--mono);font-size:12px;text-align:right;padding:5px 6px;borde
 td:first-child{text-align:left;font-family:var(--sans);color:var(--text2)}
 tr:hover td{background:var(--panel2)}
 .tk{font-family:var(--mono);font-size:9px;color:var(--muted)}
-.rk{display:inline-block;min-width:15px;color:var(--accent2);font-family:var(--mono);font-size:10px;font-weight:600;margin-right:3px}
 
 .widget-slot{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
 .widget-slot.nightbox{flex:0 0 auto;height:240px}
@@ -135,6 +146,11 @@ canvas{display:block;width:100%;height:100%;cursor:crosshair}
     <div class="strip" id="strip"></div>
   </div>
 
+  <div class="tickerrow">
+    <div class="ticker-badge">시총 TOP 20</div>
+    <div class="ticker" id="mcapTicker"></div>
+  </div>
+
   <div class="grid">
     <div class="col area-left">
       <div class="panel">
@@ -190,6 +206,7 @@ const sign=v=>v>0?'+':'';
 function fmt(n,d=0){if(!has(n))return null;return Number(n).toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d});}
 function pct(n){if(!has(n))return ND;return `<span class="${cls(n)} mono">${sign(n)}${n.toFixed(2)}%</span>`;}
 function num(n,d=0){const f=fmt(n,d);return f===null?ND:`<span class="mono">${f}</span>`;}
+function wonCap(n){if(!has(n))return '—';const jo=n/1e12;if(jo>=1)return jo.toFixed(1)+'조';return Math.round(n/1e8).toLocaleString()+'억';}
 
 function genOHLC(seed,start,years,base,drift,vol){
   let r=seed,rnd=()=>{r=(r*1103515245+12345)&0x7fffffff;return r/0x7fffffff;};
@@ -209,8 +226,7 @@ const SAMPLE={
   movers:{
     gainers:[{ticker:"096770",name:"SK이노베이션",last:118500,change_pct:14.8,volume:5200000},{ticker:"247540",name:"에코프로비엠",last:182000,change_pct:11.2,volume:3100000},{ticker:"086520",name:"에코프로",last:92400,change_pct:9.7,volume:4800000},{ticker:"042700",name:"한미반도체",last:138000,change_pct:8.3,volume:2600000},{ticker:"012450",name:"한화에어로스페이스",last:286000,change_pct:7.1,volume:980000}],
     losers:[{ticker:"068270",name:"셀트리온",last:178000,change_pct:-8.9,volume:2200000},{ticker:"207940",name:"삼성바이오로직스",last:742000,change_pct:-6.2,volume:240000},{ticker:"035720",name:"카카오",last:38900,change_pct:-5.4,volume:6800000},{ticker:"259960",name:"크래프톤",last:298000,change_pct:-4.8,volume:410000},{ticker:"036570",name:"엔씨소프트",last:184500,change_pct:-4.1,volume:520000}],
-    mcap_kospi:[{ticker:"005930",name:"삼성전자",last:74200,change_pct:1.2,mktcap:443000000000000},{ticker:"000660",name:"SK하이닉스",last:198500,change_pct:2.8,mktcap:144000000000000},{ticker:"373220",name:"LG에너지솔루션",last:382000,change_pct:-1.1,mktcap:89000000000000},{ticker:"207940",name:"삼성바이오로직스",last:742000,change_pct:-6.2,mktcap:52000000000000},{ticker:"005380",name:"현대차",last:241000,change_pct:0.4,mktcap:50000000000000}],
-    mcap_kosdaq:[{ticker:"247540",name:"에코프로비엠",last:182000,change_pct:11.2,mktcap:17800000000000},{ticker:"086520",name:"에코프로",last:92400,change_pct:9.7,mktcap:12300000000000},{ticker:"196170",name:"알테오젠",last:312000,change_pct:1.5,mktcap:11200000000000},{ticker:"328130",name:"루닛",last:48500,change_pct:-2.1,mktcap:980000000000},{ticker:"068760",name:"셀트리온제약",last:78900,change_pct:0.8,mktcap:870000000000}]
+    mcap_all:[{ticker:"005930",name:"삼성전자",change_pct:1.2,mktcap:443000000000000},{ticker:"000660",name:"SK하이닉스",change_pct:2.8,mktcap:144000000000000},{ticker:"373220",name:"LG에너지솔루션",change_pct:-1.1,mktcap:89000000000000},{ticker:"207940",name:"삼성바이오로직스",change_pct:-6.2,mktcap:52000000000000},{ticker:"005380",name:"현대차",change_pct:0.4,mktcap:50000000000000},{ticker:"000270",name:"기아",change_pct:0.9,mktcap:38000000000000},{ticker:"068270",name:"셀트리온",change_pct:-8.9,mktcap:36000000000000},{ticker:"105560",name:"KB금융",change_pct:1.7,mktcap:34000000000000},{ticker:"005935",name:"삼성전자우",change_pct:1.0,mktcap:33000000000000},{ticker:"012450",name:"한화에어로스페이스",change_pct:7.1,mktcap:31000000000000}]
   },
   news:[{title:"美 반도체株 급등에 SOX 1.4%↑… 삼성·하이닉스 강세 기대",summary:"엔비디아 실적 호조와 HBM 수요 전망에 필라델피아 반도체지수가 강세 마감.",source:"샘플경제",url:"#",published_at:"06-03 06:40"},{title:"원/달러 1370원대 등락… 외국인 현물 매도 지속",summary:"환율 상단이 막히지 않으면 외국인 순매수 전환이 지연될 수 있다는 분석.",source:"샘플경제",url:"#",published_at:"06-03 05:10"}],
   charts:{"코스피":{name:"코스피 지수",ohlcv:genOHLC(7,T0,9.4,1900,0.0003,0.011)},"코스닥":{name:"코스닥 지수",ohlcv:genOHLC(19,T0,9.4,650,0.00012,0.015)}}
@@ -225,8 +241,6 @@ const PERIODS=[["1M",1],["3M",3],["6M",6],["1Y",12],["2Y",24],["5Y",60],["10Y",1
 const INTERVALS=[["1D","D"],["1W","W"],["1M","M"]];
 let state={sym:null,period:12,interval:"D",chartType:"area"};
 let moverTab='gainers';
-let mcapMkt='kospi';
-function wonCap(n){if(!has(n))return '—';const jo=n/1e12;if(jo>=1)return jo.toFixed(1)+'조';return Math.round(n/1e8).toLocaleString()+'억';}
 
 async function load(){
   try{const r=await fetch('snapshot.json',{cache:'no-store'});if(!r.ok)throw 0;DATA=await r.json();DEMO=false;}
@@ -237,7 +251,7 @@ load();
 
 function render(){
   $('#asof').textContent=DATA.meta&&DATA.meta.generated_at?DATA.meta.generated_at.replace('T',' ').slice(0,16):(DEMO?'샘플':'데이터 없음');
-  [renderStrip,renderHeat,renderMovers,renderNews,renderStatus,initChartControls,renderWidgets]
+  [renderStrip,renderTicker,renderHeat,renderMovers,renderNews,renderStatus,initChartControls,renderWidgets]
     .forEach(fn=>{try{fn();}catch(e){console.error('[render]',fn.name,e);}});
 }
 
@@ -251,6 +265,16 @@ function renderStrip(){
   $('#strip').innerHTML=[g.sp500,g.nasdaq,g.dow,g.sox,g.vix,g.usdkrw,g.dxy,g.us10y,g.wti,g.gold].map(chip).join('');
 }
 
+function renderTicker(){
+  const el=$('#mcapTicker');if(!el)return;
+  const rows=(DATA.movers||{}).mcap_all;
+  if(!has(rows)){el.parentElement.style.display='none';return;}
+  el.parentElement.style.display='';
+  const item=(r,i)=>`<span class="ti"><span class="ti-rk">${i+1}</span><span class="ti-nm">${r.name}</span><span class="ti-cap">${wonCap(r.mktcap)}</span><span class="ti-chg ${cls(r.change_pct)}">${has(r.change_pct)?(r.change_pct>0?'+':'')+r.change_pct.toFixed(2)+'%':''}</span></span>`;
+  const seq=rows.map(item).join('<span class="ti-sep">·</span>');
+  el.innerHTML=`<div class="ti-track">${seq}<span class="ti-sep">·</span>${seq}<span class="ti-sep">·</span></div>`;
+}
+
 function heatColor(p){if(!has(p))return 'background:var(--panel2)';const a=Math.min(1,Math.abs(p)/2.5)*0.55+0.12;const c=p>=0?'255,77,86':'77,141,255';return `background:rgba(${c},${a});border-color:rgba(${c},${a+0.15})`;}
 function renderHeat(){
   const s=DATA.sectors;if(!has(s)){$('#heat').innerHTML=ND;return;}
@@ -259,21 +283,10 @@ function renderHeat(){
 
 function renderMovers(){
   const m=DATA.movers;const seg=$('#moverSeg');
-  if(moverTab==='volume')moverTab='gainers';
-  seg.innerHTML=[['gainers','급등'],['losers','급락'],['mcap','시총']].map(([k,l])=>`<button data-k="${k}" class="${k===moverTab?'on':''}">${l}</button>`).join('');
+  if(moverTab!=='gainers'&&moverTab!=='losers')moverTab='gainers';
+  seg.innerHTML=[['gainers','급등'],['losers','급락']].map(([k,l])=>`<button data-k="${k}" class="${k===moverTab?'on':''}">${l}</button>`).join('');
   seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{moverTab=b.dataset.k;renderMovers();});
-  if(!has(m)){$('#movers').innerHTML=ND;return;}
-
-  if(moverTab==='mcap'){
-    const key=mcapMkt==='kospi'?'mcap_kospi':'mcap_kosdaq';const rows=m[key];
-    let sub=`<div class="seg sm" style="margin:0 0 8px">`+[['kospi','코스피'],['kosdaq','코스닥']].map(([k,l])=>`<button data-mk="${k}" class="${k===mcapMkt?'on':''}">${l}</button>`).join('')+`</div>`;
-    $('#movers').innerHTML=sub+(has(rows)?`<table><thead><tr><th>종목</th><th>종가</th><th>등락</th><th>시가총액</th></tr></thead><tbody>`+
-      rows.map((r,i)=>`<tr><td><span class="rk">${i+1}</span>${r.name}<div class="tk">${r.ticker||''}</div></td><td>${num(r.last)}</td><td>${pct(r.change_pct)}</td><td><span class="mono" style="color:var(--accent2)">${wonCap(r.mktcap)}</span></td></tr>`).join('')+`</tbody></table>`:ND);
-    $('#movers').querySelectorAll('button[data-mk]').forEach(b=>b.onclick=()=>{mcapMkt=b.dataset.mk;renderMovers();});
-    return;
-  }
-
-  if(!has(m[moverTab])){$('#movers').innerHTML=ND;return;}
+  if(!has(m)||!has(m[moverTab])){$('#movers').innerHTML=ND;return;}
   let h=`<table><thead><tr><th>종목</th><th>종가</th><th>등락</th><th>거래량</th></tr></thead><tbody>`;
   h+=m[moverTab].map(r=>`<tr><td>${r.name}<div class="tk">${r.ticker||''}</div></td><td>${num(r.last)}</td><td>${pct(r.change_pct)}</td><td>${has(r.volume)?fmt(Math.round(r.volume/1000))+'K':ND}</td></tr>`).join('');
   $('#movers').innerHTML=h+'</tbody></table>';
