@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-KR Premarket Terminal - 데이터 수집기 (approach a: 무료 라이브러리)
-지수/차트는 Yahoo(^KS11/^KQ11). 수급/특징주/업종은 KRX(로그인 필요 시 데이터 없음).
+KR Premarket Terminal - 데이터 수집기
+지수/차트/미국시장: Yahoo(yfinance). 특징주/업종: KRX OpenAPI(키 필요).
+수급: KRX OpenAPI 미제공. 뉴스: RSS. 실적: config/earnings.json(선택).
 """
 import os, sys, json, re, html, argparse
 from datetime import datetime, timedelta, timezone
@@ -17,7 +18,6 @@ def ts_ms(d):
     return int(datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp() * 1000)
 
 def recent_business_days(n, base=None):
-    """base(KST date) 이하의 최근 평일 n개(최신순). KRX 의존 없이 주말만 건너뜀."""
     if base is None:
         base = (datetime.now(KST) - timedelta(days=1)).date()
     out, cur = [], base
@@ -27,8 +27,7 @@ def recent_business_days(n, base=None):
         cur -= timedelta(days=1)
     return out
 
-def collect_indices_and_charts(last_day):
-    """코스피/코스닥 지수 + 10Y 차트 - Yahoo(^KS11/^KQ11)."""
+def collect_indices_and_charts():
     import yfinance as yf
     indices, charts = {}, {}
     spec = {"코스피": ("^KS11", "kospi"), "코스닥": ("^KQ11", "kosdaq")}
@@ -64,7 +63,6 @@ GLOBAL_TICKERS = {
     "usdkrw": ("KRW=X",    "원/달러",     None),
     "ewy":    ("EWY",      "EWY 한국ETF", None),
 }
-
 def collect_global():
     import yfinance as yf
     g = {}
@@ -80,73 +78,69 @@ def collect_global():
             g[key] = entry; ok(f"글로벌 {name}")
         except Exception as e:
             g[key] = None; fail(f"글로벌 {name}", e)
-    g["vkospi"] = None
     return g
 
-def _net_by_investor(day, market):
-    from pykrx import stock
-    net = stock.get_market_trading_value_by_investor(day, day, market)["순매수"]
-    def pick(label): return float(net[label]) / 1e8 if label in net.index else None
-    foreign, etc_f = pick("외국인"), pick("기타외국인")
-    if foreign is not None and etc_f is not None: foreign += etc_f
-    inst, indi = pick("기관합계"), pick("개인")
-    return {"foreign": round(foreign) if foreign is not None else None,
-            "institution": round(inst) if inst is not None else None,
-            "individual": round(indi) if indi is not None else None}
+KRX_BASE = "http://data-dbg.krx.co.kr/svc/apis"
+def _krx(cat, api, basDd, key):
+    import requests
+    r = requests.get(f"{KRX_BASE}/{cat}/{api}", headers={"AUTH_KEY": key},
+                     params={"basDd": basDd}, timeout=30)
+    r.raise_for_status()
+    j = r.json()
+    return j.get("OutBlock_1") or next((v for v in j.values() if isinstance(v, list)), [])
 
-def collect_flows(last_day):
-    flows = {}
-    for mkt_name, mkt in (("kospi", "KOSPI"), ("kosdaq", "KOSDAQ")):
-        try:
-            flows[mkt_name] = _net_by_investor(last_day, mkt); ok(f"수급 {mkt}")
-        except Exception as e:
-            flows[mkt_name] = None; fail(f"수급 {mkt}", e)
-    return flows
+def _f(x):
+    try: return float(str(x).replace(",", "").strip())
+    except Exception: return None
 
-def collect_movers(last_day, prev_day, min_value=1_000_000_000):
-    from pykrx import stock
-    import pandas as pd
+def collect_movers(last_day, prev_day, key, min_value=1_000_000_000):
+    if not key:
+        fail("특징주", "KRX_API_KEY 없음"); return None
     try:
-        t = pd.concat([stock.get_market_ohlcv(last_day, market=m) for m in ("KOSPI", "KOSDAQ")])
-        p = pd.concat([stock.get_market_ohlcv(prev_day, market=m) for m in ("KOSPI", "KOSDAQ")])
-        t = t[(t["거래대금"] >= min_value) & (t["종가"] > 0)].copy()
-        t["prev_vol"] = p["거래량"].reindex(t.index)
-        t["vol_ratio"] = t.apply(lambda r: (r["거래량"] / r["prev_vol"]) if r["prev_vol"] and r["prev_vol"] > 0 else None, axis=1)
-        cache = {}
-        def nm(code):
-            if code not in cache:
-                try: cache[code] = stock.get_market_ticker_name(code)
-                except Exception: cache[code] = code
-            return cache[code]
-        def rows(df, vol=False):
+        today, prev = {}, {}
+        for api in ("stk_bydd_trd", "ksq_bydd_trd"):
+            for row in _krx("sto", api, last_day, key): today[row.get("ISU_CD")] = row
+            for row in _krx("sto", api, prev_day, key): prev[row.get("ISU_CD")] = row
+        recs = []
+        for code, row in today.items():
+            val = _f(row.get("ACC_TRDVAL")); clo = _f(row.get("TDD_CLSPRC"))
+            if val is None or val < min_value or not clo: continue
+            vol = _f(row.get("ACC_TRDVOL")); pv = _f((prev.get(code) or {}).get("ACC_TRDVOL"))
+            recs.append({"ticker": code, "name": row.get("ISU_NM"), "last": int(clo),
+                         "change_pct": _f(row.get("FLUC_RT")), "volume": int(vol or 0),
+                         "vol_ratio": (vol / pv) if (vol and pv and pv > 0) else None})
+        if not recs: raise ValueError("빈 데이터")
+        g = sorted(recs, key=lambda r: r["change_pct"] if r["change_pct"] is not None else -1e9, reverse=True)[:8]
+        l = sorted(recs, key=lambda r: r["change_pct"] if r["change_pct"] is not None else 1e9)[:8]
+        v = sorted([r for r in recs if r["vol_ratio"]], key=lambda r: r["vol_ratio"], reverse=True)[:8]
+        def clean(rows, vol_mode):
             out = []
-            for code, r in df.iterrows():
-                it = {"ticker": code, "name": nm(code), "last": int(r["종가"]), "change_pct": round(float(r["등락률"]), 2)}
-                if vol: it["vol_ratio"] = round(float(r["vol_ratio"]), 1) if r["vol_ratio"] else None
-                else: it["volume"] = int(r["거래량"])
+            for r in rows:
+                it = {"ticker": r["ticker"], "name": r["name"], "last": r["last"],
+                      "change_pct": round(r["change_pct"], 2) if r["change_pct"] is not None else None}
+                if vol_mode: it["vol_ratio"] = round(r["vol_ratio"], 1)
+                else: it["volume"] = r["volume"]
                 out.append(it)
             return out
-        ok(f"특징주 (대상 {len(t)}종목)")
-        return {"gainers": rows(t.sort_values("등락률", ascending=False).head(8)),
-                "losers":  rows(t.sort_values("등락률", ascending=True).head(8)),
-                "volume":  rows(t[t["vol_ratio"].notna()].sort_values("vol_ratio", ascending=False).head(8), vol=True)}
+        ok(f"특징주 (대상 {len(recs)}종목)")
+        return {"gainers": clean(g, False), "losers": clean(l, False), "volume": clean(v, True)}
     except Exception as e:
         fail("특징주", e); return None
 
-SECTOR_CODES = {"전기전자": "1013", "화학": "1008", "의약품": "1009", "운수장비": "1015",
-                "금융업": "1021", "철강금속": "1011", "서비스업": "1026", "건설업": "1018", "기계": "1012"}
-
-def collect_sectors(last_day):
-    from pykrx import stock
-    frm = (datetime.strptime(last_day, "%Y%m%d") - timedelta(days=10)).strftime("%Y%m%d")
-    out = []
-    for name, code in SECTOR_CODES.items():
-        try:
-            c = stock.get_index_ohlcv(frm, last_day, code).dropna()["종가"]
-            out.append({"name": name, "change_pct": round((float(c.iloc[-1]) / float(c.iloc[-2]) - 1) * 100, 2)})
-        except Exception as e:
-            out.append({"name": name, "change_pct": None}); fail(f"업종 {name}", e)
-    ok("업종 히트맵"); return out or None
+SECTORS = ["전기전자", "화학", "의약품", "운수장비", "금융업", "철강금속", "서비스업", "건설업", "기계"]
+def collect_sectors(last_day, key):
+    if not key:
+        fail("업종", "KRX_API_KEY 없음"); return None
+    try:
+        rows = _krx("idx", "kospi_dd_trd", last_day, key)
+        bynm = {(r.get("IDX_NM") or "").strip(): _f(r.get("FLUC_RT")) for r in rows}
+        out = []
+        for name in SECTORS:
+            chg = next((v for k, v in bynm.items() if name in k), None)
+            out.append({"name": name, "change_pct": round(chg, 2) if chg is not None else None})
+        ok("업종 히트맵"); return out
+    except Exception as e:
+        fail("업종", e); return None
 
 DEFAULT_FEEDS = [
     ("연합뉴스 경제", "https://www.yna.co.kr/rss/economy.xml"),
@@ -154,7 +148,6 @@ DEFAULT_FEEDS = [
     ("한국경제 증권", "https://www.hankyung.com/feed/finance"),
 ]
 def _clean(t): return html.unescape(re.sub(r"<[^>]+>", "", t or "")).strip()
-
 def collect_news(limit=8):
     import feedparser
     feeds = DEFAULT_FEEDS
@@ -190,30 +183,24 @@ def main():
     ap.add_argument("--date")
     ap.add_argument("--out", default="snapshot.json")
     args = ap.parse_args()
+    key = os.environ.get("KRX_API_KEY")
 
-    try:
-        if args.date:
-            last = args.date
-            prev = recent_business_days(1, base=datetime.strptime(last, "%Y%m%d").date() - timedelta(days=1))[0]
-        else:
-            last, prev = recent_business_days(2)
-        log("INFO", f"기준 거래일={last}, 전거래일={prev}")
-    except Exception as e:
-        fail("거래일 계산", e); last = prev = None
+    if args.date:
+        last = args.date
+        prev = recent_business_days(1, base=datetime.strptime(last, "%Y%m%d").date() - timedelta(days=1))[0]
+    else:
+        last, prev = recent_business_days(2)
+    log("INFO", f"기준 거래일={last}, 전거래일={prev}, KRX키={'있음' if key else '없음'}")
 
     sources = {}
     snap = {"meta": {"generated_at": datetime.now(KST).isoformat(timespec="seconds"),
                      "demo": False, "trade_date": last, "sources": sources}}
 
-    if last:
-        snap["indices"], snap["charts"] = collect_indices_and_charts(last)
-        snap["flows"] = collect_flows(last)
-        snap["movers"] = collect_movers(last, prev)
-        snap["sectors"] = collect_sectors(last)
-    else:
-        snap.update({k: None for k in ("indices", "charts", "flows", "movers", "sectors")})
-
+    snap["indices"], snap["charts"] = collect_indices_and_charts()
     snap["global"] = collect_global()
+    snap["movers"] = collect_movers(last, prev, key)
+    snap["sectors"] = collect_sectors(last, key)
+    snap["flows"] = None
     snap["news"] = collect_news()
     snap["earnings"], src_earn = load_earnings()
 
@@ -221,8 +208,8 @@ def main():
         return "수집됨" if (v is not None and (not isinstance(v, list) or len(v) > 0)) else fb
     sources.update({
         "indices": st(snap.get("indices") and snap["indices"].get("kospi")),
-        "flows": st(snap.get("flows") and snap["flows"].get("kospi")),
-        "movers": st(snap.get("movers")),
+        "flows": "미제공",
+        "movers": st(snap.get("movers"), "수집 실패/키 확인"),
         "news": st(snap.get("news")),
         "earnings": src_earn,
         "charts": st(snap.get("charts")),
