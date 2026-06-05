@@ -1,5 +1,4 @@
-pykrx>=1.0.45
-finance-datareader>=0.9.50
 yfinance>=0.2.40
 feedparser>=6.0
+requests>=2.31
 pandas>=2.0
