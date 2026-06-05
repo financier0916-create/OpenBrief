@@ -56,10 +56,13 @@ def collect_indices_and_charts():
 GLOBAL_TICKERS = {
     "sp500":  ("^GSPC",    "S&P500",     None),
     "nasdaq": ("^IXIC",    "나스닥",      None),
+    "dow":    ("^DJI",     "다우",        None),
     "sox":    ("^SOX",     "SOX 반도체",  None),
+    "vix":    ("^VIX",     "VIX 공포지수", None),
     "us10y":  ("^TNX",     "미10년물",    "%"),
     "dxy":    ("DX-Y.NYB", "달러인덱스",  None),
     "wti":    ("CL=F",     "WTI",        None),
+    "gold":   ("GC=F",     "금",          None),
     "usdkrw": ("KRW=X",    "원/달러",     None),
     "ewy":    ("EWY",      "EWY 한국ETF", None),
 }
