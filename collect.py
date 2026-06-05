@@ -120,20 +120,23 @@ def collect_movers(last_day, prev_day, key, min_value=1_000_000_000):
             return [{"ticker": r["ticker"], "name": r["name"], "last": r["last"],
                      "change_pct": round(r["change_pct"], 2) if r["change_pct"] is not None else None,
                      "volume": r["volume"]} for r in rows]
-        def mcap_top(mkt):
-            rows = [r for r in today.values() if r.get("_mkt") == mkt and _f(r.get("MKTCAP"))]
+        def mcap_top(rows_pool, topn=10):
+            rows = [r for r in rows_pool if _f(r.get("MKTCAP"))]
             rows.sort(key=lambda r: _f(r.get("MKTCAP")), reverse=True)
             out = []
-            for r in rows[:10]:
+            for r in rows[:topn]:
                 fr = _f(r.get("FLUC_RT"))
                 out.append({"ticker": r.get("ISU_CD"), "name": r.get("ISU_NM"),
                             "last": int(_f(r.get("TDD_CLSPRC")) or 0),
                             "change_pct": round(fr, 2) if fr is not None else None,
                             "mktcap": _f(r.get("MKTCAP"))})
             return out
+        kospi_rows = [r for r in today.values() if r.get("_mkt") == "kospi"]
+        kosdaq_rows = [r for r in today.values() if r.get("_mkt") == "kosdaq"]
         ok(f"특징주 (대상 {len(recs)}종목)")
         return {"gainers": clean(g), "losers": clean(l),
-                "mcap_kospi": mcap_top("kospi"), "mcap_kosdaq": mcap_top("kosdaq")}
+                "mcap_kospi": mcap_top(kospi_rows), "mcap_kosdaq": mcap_top(kosdaq_rows),
+                "mcap_all": mcap_top(list(today.values()), 20)}
     except Exception as e:
         fail("특징주", e); return None
 
