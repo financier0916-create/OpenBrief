@@ -140,17 +140,20 @@ def collect_movers(last_day, prev_day, key, min_value=1_000_000_000):
     except Exception as e:
         fail("특징주", e); return None
 
-SECTORS = ["전기전자", "화학", "의약품", "운수장비", "금융업", "철강금속", "서비스업", "건설업", "기계"]
+SECTORS = ["전기전자", "화학", "금융", "건설", "기계·장비", "운송장비·부품", "의료·정밀기기", "섬유·의류", "음식료·담배"]
 def collect_sectors(last_day, key):
     if not key:
         fail("업종", "KRX_API_KEY 없음"); return None
     try:
         rows = _krx("idx", "kospi_dd_trd", last_day, key)
         bynm = {(r.get("IDX_NM") or "").strip(): _f(r.get("FLUC_RT")) for r in rows}
-        log("DEBUG", f"KRX 지수명 목록: {sorted(bynm.keys())}")
         out = []
         for name in SECTORS:
-            chg = next((v for k, v in bynm.items() if name in k), None)
+            if name in bynm:                       # 정확히 일치 우선
+                chg = bynm[name]
+            else:                                  # 없으면 부분일치(코스피 접두어 제외)
+                chg = next((v for k, v in bynm.items()
+                            if name in k and not k.startswith("코스피")), None)
             out.append({"name": name, "change_pct": round(chg, 2) if chg is not None else None})
         ok("업종 히트맵"); return out
     except Exception as e:
