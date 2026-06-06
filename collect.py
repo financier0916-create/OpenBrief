@@ -147,6 +147,7 @@ def collect_sectors(last_day, key):
     try:
         rows = _krx("idx", "kospi_dd_trd", last_day, key)
         bynm = {(r.get("IDX_NM") or "").strip(): _f(r.get("FLUC_RT")) for r in rows}
+        log("DEBUG", f"KRX 지수명 목록: {sorted(bynm.keys())}")
         out = []
         for name in SECTORS:
             chg = next((v for k, v in bynm.items() if name in k), None)
