@@ -205,40 +205,49 @@ def _news_score(title, summary):
     if "속보" in title or "[속보]" in title: score += 2
     return score
 
-def collect_news(per_side=8):
-    import feedparser
+def collect_news(per_side=8, max_age_hours=30):
+    import feedparser, time as _time
     feeds = DEFAULT_FEEDS
     cfg = os.path.join("config", "news_feeds.json")
     if os.path.exists(cfg):
         try: feeds = [(f["source"], f["url"]) for f in json.load(open(cfg, encoding="utf-8"))]
         except Exception as e: fail("news_feeds.json", e)
+    now_utc = datetime.now(timezone.utc)
     items, seen = [], set()
     for src, url in feeds:
         try:
-            for e in feedparser.parse(url).entries[:25]:
+            for e in feedparser.parse(url).entries[:30]:
                 title = _clean(e.get("title")); summary = _clean(e.get("summary"))
                 if not title: continue
                 k = re.sub(r"[^가-힣A-Za-z0-9]", "", title)[:24]
                 if k in seen: continue
                 seen.add(k)
-                pub = datetime(*e.published_parsed[:6]).strftime("%m-%d %H:%M") if getattr(e, "published_parsed", None) else ""
+                pp = getattr(e, "published_parsed", None)
+                if pp:
+                    dt = datetime.fromtimestamp(_time.mktime(pp), tz=timezone.utc)
+                    age_h = (now_utc - dt).total_seconds() / 3600
+                    epoch = dt.timestamp()
+                    pub = (dt.astimezone(KST)).strftime("%m-%d %H:%M")
+                else:
+                    age_h = 9999; epoch = 0; pub = ""
+                sc = _news_score(title, summary)
+                if sc < 0: continue                      # 노이즈(인사/포토 등) 제외
+                if age_h > max_age_hours: continue        # 너무 오래된 기사 제외
                 items.append({"title": title, "summary": summary[:120], "source": src,
                               "url": e.get("link"), "published_at": pub,
                               "scope": "intl" if _is_intl(title) else "domestic",
-                              "_score": _news_score(title, summary), "_s": e.get("published_parsed")})
+                              "_epoch": epoch, "_score": sc})
         except Exception as ex:
             fail(f"뉴스 {src}", ex)
     if not items: return None
     def top_of(scope):
         sub = [x for x in items if x["scope"] == scope]
-        sub.sort(key=lambda x: (x["_score"], x.get("_s") or ()), reverse=True)
-        sub = sub[:per_side]
-        sub.sort(key=lambda x: x.get("_s") or (), reverse=True)
-        return sub
+        sub.sort(key=lambda x: x["_epoch"], reverse=True)   # 최신순 우선
+        return sub[:per_side]
     dom, intl = top_of("domestic"), top_of("intl")
     out = dom + intl
-    for it in out: it.pop("_s", None); it.pop("_score", None)
-    ok(f"뉴스 국내 {len(dom)} · 국제 {len(intl)}건")
+    for it in out: it.pop("_epoch", None); it.pop("_score", None)
+    ok(f"뉴스 국내 {len(dom)} · 국제 {len(intl)}건 (최근 {max_age_hours}h)")
     return out
 
 # ── 실적 (수동, 선택) ──────────────────────────────────────────────────
