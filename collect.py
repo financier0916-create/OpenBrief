@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 KR Premarket Terminal - 데이터 수집기
-지수/차트/미국시장: Yahoo(yfinance). 특징주(시총 포함)/업종: KRX OpenAPI(키 필요).
-수급: KRX OpenAPI 미제공. 뉴스: RSS(중요도 랭킹). 실적: config/earnings.json(선택).
+지수/차트/미국시장: Yahoo(yfinance). 특징주/업종: KRX OpenAPI(키 필요).
+수급: KRX OpenAPI 미제공 → 데이터 없음. 뉴스: RSS. 실적: config/earnings.json(선택).
+환경변수 KRX_API_KEY 필요(특징주/업종용).
 """
 import os, sys, json, re, html, argparse
 from datetime import datetime, timedelta, timezone
@@ -27,6 +28,7 @@ def recent_business_days(n, base=None):
         cur -= timedelta(days=1)
     return out
 
+# ── 지수 + 차트 (Yahoo) ────────────────────────────────────────────────
 def collect_indices_and_charts():
     import yfinance as yf
     indices, charts = {}, {}
@@ -53,6 +55,7 @@ def collect_indices_and_charts():
             indices[key] = None; fail(f"지수 {name}", e)
     return indices, charts
 
+# ── 글로벌 (Yahoo) ─────────────────────────────────────────────────────
 GLOBAL_TICKERS = {
     "sp500":  ("^GSPC",    "S&P500",     None),
     "nasdaq": ("^IXIC",    "나스닥",      None),
@@ -83,6 +86,7 @@ def collect_global():
             g[key] = None; fail(f"글로벌 {name}", e)
     return g
 
+# ── KRX OpenAPI 공통 ───────────────────────────────────────────────────
 KRX_BASE = "http://data-dbg.krx.co.kr/svc/apis"
 def _krx(cat, api, basDd, key):
     import requests
@@ -96,6 +100,7 @@ def _f(x):
     try: return float(str(x).replace(",", "").strip())
     except Exception: return None
 
+# ── 특징주 (KRX OpenAPI) ───────────────────────────────────────────────
 def collect_movers(last_day, prev_day, key, min_value=1_000_000_000):
     if not key:
         fail("특징주", "KRX_API_KEY 없음"); return None
@@ -140,6 +145,7 @@ def collect_movers(last_day, prev_day, key, min_value=1_000_000_000):
     except Exception as e:
         fail("특징주", e); return None
 
+# ── 업종 히트맵 (KRX OpenAPI, KOSPI 시리즈에서 업종지수 추출) ──────────
 SECTORS = ["전기전자", "화학", "금융", "건설", "기계·장비", "운송장비·부품", "의료·정밀기기", "섬유·의류", "음식료·담배"]
 def collect_sectors(last_day, key):
     if not key:
@@ -159,6 +165,7 @@ def collect_sectors(last_day, key):
     except Exception as e:
         fail("업종", e); return None
 
+# ── 뉴스 (RSS) ─────────────────────────────────────────────────────────
 DEFAULT_FEEDS = [
     ("연합뉴스 경제", "https://www.yna.co.kr/rss/economy.xml"),
     ("연합뉴스 증권", "https://www.yna.co.kr/rss/market.xml"),
@@ -167,6 +174,7 @@ DEFAULT_FEEDS = [
     ("한국경제 증권", "https://www.hankyung.com/feed/finance"),
     ("한국경제 경제", "https://www.hankyung.com/feed/economy"),
 ]
+# 투자/경제에서 꼭 봐야 할 기사를 끌어올리기 위한 키워드 가중치
 NEWS_KEYWORDS = {
     5: ["금리", "기준금리", "FOMC", "연준", "Fed", "환율", "원/달러", "원달러", "고용", "물가", "CPI", "GDP", "한국은행", "긴축", "인하"],
     4: ["코스피", "코스닥", "반도체", "삼성전자", "SK하이닉스", "외국인", "수급", "실적", "어닝", "관세", "수출"],
@@ -175,7 +183,16 @@ NEWS_KEYWORDS = {
 }
 NEWS_NOISE = ["인사", "부고", "동정", "포토", "날씨", "운세", "사설", "칼럼", "기고", "당첨", "이벤트", "행사", "예고", "방송"]
 
+# 국제(해외) 분류 키워드 — 제목에 있으면 '국제'로 분류
+INTL_KEYWORDS = ["미국", "美", "뉴욕", "월가", "월스트리트", "연준", "Fed", "FOMC", "파월",
+    "나스닥", "S&P", "다우", "필라델피아", "엔비디아", "테슬라", "애플", "마이크로소프트", "MS",
+    "중국", "中", "일본", "日", "유럽", "EU", "독일", "영국", "ECB", "BOJ", "위안", "엔화",
+    "관세", "트럼프", "바이든", "OPEC", "국제유가", "글로벌", "해외"]
+
 def _clean(t): return html.unescape(re.sub(r"<[^>]+>", "", t or "")).strip()
+
+def _is_intl(title):
+    return any(k in title for k in INTL_KEYWORDS)
 
 def _news_score(title, summary):
     text = (title or "") + " " + (summary or "")
@@ -188,7 +205,7 @@ def _news_score(title, summary):
     if "속보" in title or "[속보]" in title: score += 2
     return score
 
-def collect_news(limit=10):
+def collect_news(per_side=8):
     import feedparser
     feeds = DEFAULT_FEEDS
     cfg = os.path.join("config", "news_feeds.json")
@@ -207,16 +224,24 @@ def collect_news(limit=10):
                 pub = datetime(*e.published_parsed[:6]).strftime("%m-%d %H:%M") if getattr(e, "published_parsed", None) else ""
                 items.append({"title": title, "summary": summary[:120], "source": src,
                               "url": e.get("link"), "published_at": pub,
+                              "scope": "intl" if _is_intl(title) else "domestic",
                               "_score": _news_score(title, summary), "_s": e.get("published_parsed")})
         except Exception as ex:
             fail(f"뉴스 {src}", ex)
     if not items: return None
-    items.sort(key=lambda x: (x["_score"], x.get("_s") or ()), reverse=True)
-    top = items[:limit]
-    top.sort(key=lambda x: x.get("_s") or (), reverse=True)
-    for it in top: it.pop("_s", None); it.pop("_score", None)
-    ok(f"뉴스 {len(top)}건 (후보 {len(items)})"); return top
+    def top_of(scope):
+        sub = [x for x in items if x["scope"] == scope]
+        sub.sort(key=lambda x: (x["_score"], x.get("_s") or ()), reverse=True)
+        sub = sub[:per_side]
+        sub.sort(key=lambda x: x.get("_s") or (), reverse=True)
+        return sub
+    dom, intl = top_of("domestic"), top_of("intl")
+    out = dom + intl
+    for it in out: it.pop("_s", None); it.pop("_score", None)
+    ok(f"뉴스 국내 {len(dom)} · 국제 {len(intl)}건")
+    return out
 
+# ── 실적 (수동, 선택) ──────────────────────────────────────────────────
 def load_earnings():
     path = os.path.join("config", "earnings.json")
     if os.path.exists(path):
@@ -226,6 +251,7 @@ def load_earnings():
             fail("실적", e)
     log("SKIP", f"실적: {path} 없음 → 데이터 없음"); return None, "없음"
 
+# ── main ───────────────────────────────────────────────────────────────
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--date")
@@ -248,7 +274,7 @@ def main():
     snap["global"] = collect_global()
     snap["movers"] = collect_movers(last, prev, key)
     snap["sectors"] = collect_sectors(last, key)
-    snap["flows"] = None
+    snap["flows"] = None  # KRX OpenAPI 미제공
     snap["news"] = collect_news()
     snap["earnings"], src_earn = load_earnings()
 
