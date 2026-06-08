@@ -117,6 +117,14 @@ tr:hover td{background:var(--panel2)}
 .legend b{font-weight:600}
 canvas{display:block;width:100%;height:100%;cursor:crosshair}
 .canvas-wrap{position:relative;flex:1 1 auto;min-height:0}
+.ta-box{flex:0 0 auto;border-top:1px solid var(--border);padding:8px 12px;display:flex;align-items:center;gap:10px;background:rgba(20,27,34,.4);flex-wrap:wrap}
+.ta-badges{display:flex;gap:6px;flex-wrap:wrap;flex:0 0 auto}
+.ta-badge{font-family:var(--mono);font-size:9.5px;padding:2px 7px;border-radius:3px;border:1px solid var(--border2);color:var(--text2);white-space:nowrap}
+.ta-badge.bull{color:#ff8088;border-color:rgba(255,77,86,.4);background:rgba(255,77,86,.08)}
+.ta-badge.bear{color:#8fb6ff;border-color:rgba(77,141,255,.4);background:rgba(77,141,255,.08)}
+.ta-badge.warn{color:var(--accent2);border-color:rgba(216,162,74,.4);background:rgba(216,162,74,.08)}
+.ta-txt{font-size:11.5px;color:var(--text);line-height:1.5;flex:1 1 320px;min-width:240px}
+.ta-txt .dis{display:block;color:var(--faint);font-size:9.5px;font-family:var(--mono);margin-top:3px}
 .chart-hero{position:absolute;top:14px;left:16px;z-index:2;pointer-events:none}
 .chart-hero .nm{font-size:11px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase}
 .chart-hero .px{font-family:var(--mono);font-size:36px;font-weight:600;line-height:1.04;margin-top:3px;letter-spacing:-.01em}
@@ -169,9 +177,11 @@ canvas{display:block;width:100%;height:100%;cursor:crosshair}
         <span class="seglbl">유형</span><div class="seg" id="typeSeg"></div>
         <span class="seglbl">기간</span><div class="seg" id="periodSeg"></div>
         <span class="seglbl">인터벌</span><div class="seg" id="intervalSeg"></div>
+        <span class="seglbl">지표</span><div class="seg" id="indSeg"></div>
         <div class="legend" id="legend"></div>
       </div>
       <div class="canvas-wrap"><div class="chart-hero" id="chartHero"></div><canvas id="chart"></canvas></div>
+      <div class="ta-box" id="analysis"></div>
     </div>
 
     <div class="col area-right">
@@ -222,7 +232,7 @@ const SAMPLE={
   meta:{generated_at:null,demo:true,sources:{indices:"sample",movers:"sample",news:"sample",charts:"sample"}},
   indices:{kospi:{name:"코스피",last:2712.4,change_pct:0.68},kosdaq:{name:"코스닥",last:842.1,change_pct:-0.40}},
   global:{sp500:{name:"S&P500",last:5901.2,change_pct:0.52},nasdaq:{name:"나스닥",last:19210.3,change_pct:0.81},dow:{name:"다우",last:42850.1,change_pct:0.33},sox:{name:"SOX 반도체",last:5120.4,change_pct:1.42},vix:{name:"VIX 공포지수",last:14.2,change_pct:-5.1},us10y:{name:"미10년물",last:4.38,change_pct:-0.7,unit:"%"},dxy:{name:"달러인덱스",last:104.2,change_pct:0.15},wti:{name:"WTI",last:68.4,change_pct:-1.1},gold:{name:"금",last:2412.5,change_pct:0.42},usdkrw:{name:"원/달러",last:1372.5,change_pct:0.22},ewy:{name:"EWY 한국ETF",last:62.4,change_pct:0.74}},
-  sectors:[{name:"전기전자",change_pct:1.62},{name:"화학",change_pct:-0.94},{name:"의약품",change_pct:0.31},{name:"운수장비",change_pct:0.72},{name:"서비스업",change_pct:-0.18},{name:"금융업",change_pct:0.44},{name:"철강금속",change_pct:-1.21},{name:"건설업",change_pct:0.55},{name:"기계",change_pct:1.15}],
+  sectors:[{name:"전기전자",change_pct:1.62},{name:"화학",change_pct:-0.94},{name:"금융",change_pct:0.31},{name:"건설",change_pct:0.72},{name:"기계·장비",change_pct:-0.18},{name:"운송장비·부품",change_pct:0.44},{name:"의료·정밀기기",change_pct:-1.21},{name:"섬유·의류",change_pct:0.55},{name:"음식료·담배",change_pct:1.15}],
   movers:{
     gainers:[{ticker:"096770",name:"SK이노베이션",last:118500,change_pct:14.8,volume:5200000},{ticker:"247540",name:"에코프로비엠",last:182000,change_pct:11.2,volume:3100000},{ticker:"086520",name:"에코프로",last:92400,change_pct:9.7,volume:4800000},{ticker:"042700",name:"한미반도체",last:138000,change_pct:8.3,volume:2600000},{ticker:"012450",name:"한화에어로스페이스",last:286000,change_pct:7.1,volume:980000}],
     losers:[{ticker:"068270",name:"셀트리온",last:178000,change_pct:-8.9,volume:2200000},{ticker:"207940",name:"삼성바이오로직스",last:742000,change_pct:-6.2,volume:240000},{ticker:"035720",name:"카카오",last:38900,change_pct:-5.4,volume:6800000},{ticker:"259960",name:"크래프톤",last:298000,change_pct:-4.8,volume:410000},{ticker:"036570",name:"엔씨소프트",last:184500,change_pct:-4.1,volume:520000}],
@@ -239,7 +249,7 @@ const SAMPLE_SCHEDULE=[
 ];
 const PERIODS=[["1M",1],["3M",3],["6M",6],["1Y",12],["2Y",24],["5Y",60],["10Y",120]];
 const INTERVALS=[["1D","D"],["1W","W"],["1M","M"]];
-let state={sym:null,period:12,interval:"D",chartType:"area"};
+let state={sym:null,period:12,interval:"D",chartType:"area",ind:{ma:true,boll:true,rsi:true}};
 let moverTab='gainers';
 
 async function load(){
@@ -346,6 +356,57 @@ function resample(ohlcv,iv){
   if(cur)out.push(cur);return out;
 }
 function sma(a,p){const o=Array(a.length).fill(null);let s=0;for(let i=0;i<a.length;i++){s+=a[i];if(i>=p)s-=a[i-p];if(i>=p-1)o[i]=s/p;}return o;}
+function rsiArr(closes,p=14){
+  const o=Array(closes.length).fill(null);if(closes.length<=p)return o;
+  let g=0,l=0;
+  for(let i=1;i<=p;i++){const ch=closes[i]-closes[i-1];g+=Math.max(ch,0);l+=Math.max(-ch,0);}
+  g/=p;l/=p;o[p]=l===0?100:100-100/(1+g/l);
+  for(let i=p+1;i<closes.length;i++){const ch=closes[i]-closes[i-1];
+    g=(g*(p-1)+Math.max(ch,0))/p;l=(l*(p-1)+Math.max(-ch,0))/p;
+    o[i]=l===0?100:100-100/(1+g/l);}
+  return o;
+}
+function bollArr(closes,p=20,k=2){
+  const mid=sma(closes,p),up=Array(closes.length).fill(null),lo=Array(closes.length).fill(null);
+  for(let i=p-1;i<closes.length;i++){let s=0;for(let j=i-p+1;j<=i;j++)s+=Math.pow(closes[j]-mid[i],2);
+    const sd=Math.sqrt(s/p);up[i]=mid[i]+k*sd;lo[i]=mid[i]-k*sd;}
+  return {mid,up,lo};
+}
+// 일봉 원본 기준 기술적 상태 요약 (규칙 기반, 상태 서술 톤)
+function techSummary(ohlcv){
+  const cl=ohlcv.map(b=>b[4]);if(cl.length<60)return null;
+  const last=i=>{for(let j=i.length-1;j>=0;j--)if(i[j]!=null)return i[j];return null;};
+  const px=cl[cl.length-1];
+  const ma5=last(sma(cl,5)),ma20=last(sma(cl,20)),ma60=last(sma(cl,60)),ma120=last(sma(cl,120));
+  const rsi=last(rsiArr(cl,14));
+  const bb=bollArr(cl,20,2),bbU=last(bb.up),bbM=last(bb.mid),bbL=last(bb.lo);
+  const pctB=(bbU!=null&&bbL!=null&&bbU>bbL)?(px-bbL)/(bbU-bbL):null;
+  let align='혼조';
+  if(ma5!=null&&ma20!=null&&ma60!=null&&ma120!=null){
+    if(ma5>ma20&&ma20>ma60&&ma60>ma120)align='정배열';
+    else if(ma5<ma20&&ma20<ma60&&ma60<ma120)align='역배열';
+  }
+  let rsiState='중립';
+  if(rsi!=null){if(rsi>=70)rsiState='과매수권';else if(rsi<=30)rsiState='과매도권';
+    else if(rsi>=50)rsiState='중립적 매수우위';else rsiState='중립적 매도우위';}
+  let bbState='중심선 부근';
+  if(pctB!=null){if(pctB>=0.8)bbState='상단 밴드 부근';else if(pctB<=0.2)bbState='하단 밴드 부근';
+    else if(pctB>=0.5)bbState='중심선~상단 사이';else bbState='중심선~하단 사이';}
+  let score=0;
+  if(ma20!=null)score+=px>=ma20?1:-1;
+  if(ma60!=null)score+=px>=ma60?1:-1;
+  if(align==='정배열')score+=1;else if(align==='역배열')score-=1;
+  if(rsi!=null){if(rsi>=70)score+=0;else if(rsi>=50)score+=1;else if(rsi<=30)score-=0;else score-=1;}
+  if(pctB!=null)score+=pctB>=0.5?1:-1;
+  const overall=score>=2?'강세':score<=-2?'약세':'중립';
+  const pos20=ma20!=null?(px>=ma20?'20일선 위':'20일선 아래'):'20일선 비교 불가';
+  const pos60=ma60!=null?(px>=ma60?'60일선 위':'60일선 아래'):'60일선 비교 불가';
+  const txt=`현재 종가는 ${pos20}, ${pos60}에 위치하며 이동평균선은 ${align} 상태입니다. `+
+    `RSI(14)는 ${rsi!=null?rsi.toFixed(0):'—'}로 ${rsiState} 구간이며, `+
+    `볼린저밴드 기준 가격은 ${bbState}에 있습니다. `+
+    `종합적으로 기술적 지표는 ${overall} 쪽에 가까운 상태로 해석됩니다.`;
+  return {txt,overall,align,rsi,rsiState,bbState,pctB};
+}
 
 const cv=$('#chart'),ctx=cv.getContext('2d');
 let GEO=null,HOVER=null;
@@ -358,6 +419,8 @@ function initChartControls(){
   $('#typeSeg').innerHTML=[['area','라인'],['candle','캔들']].map(([v,l])=>`<button data-t="${v}" class="${v===state.chartType?'on':''}">${l}</button>`).join('');
   $('#periodSeg').innerHTML=PERIODS.map(([l,m])=>`<button data-m="${m}" class="${m===state.period?'on':''}">${l}</button>`).join('');
   $('#intervalSeg').innerHTML=INTERVALS.map(([l,v])=>`<button data-v="${v}" class="${v===state.interval?'on':''}">${l}</button>`).join('');
+  $('#indSeg').innerHTML=[['ma','이평선'],['boll','볼린저'],['rsi','RSI']].map(([k,l])=>`<button data-i="${k}" class="${state.ind[k]?'on':''}">${l}</button>`).join('');
+  $('#indSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{state.ind[b.dataset.i]=!state.ind[b.dataset.i];b.classList.toggle('on');HOVER=null;drawChart();});
   bindSeg('#typeSeg',b=>state.chartType=b.dataset.t);
   bindSeg('#periodSeg',b=>state.period=+b.dataset.m);
   bindSeg('#intervalSeg',b=>state.interval=b.dataset.v);
@@ -369,17 +432,30 @@ function drawChart(){
   const wrap=cv.parentElement,dpr=window.devicePixelRatio||1,W=wrap.clientWidth,H=wrap.clientHeight;
   cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
   const c=(DATA.charts||{})[state.sym];
-  if(!c||!has(c.ohlcv)){GEO=null;ctx.fillStyle='#3a4654';ctx.font='13px monospace';ctx.fillText('차트 데이터 없음',W/2-50,H/2);$('#legend').innerHTML='';const hh=$('#chartHero');if(hh)hh.innerHTML='';return;}
-  let bars=resample(c.ohlcv,state.interval);
-  const last=bars[bars.length-1][0];const cutoff=new Date(last);cutoff.setUTCMonth(cutoff.getUTCMonth()-state.period);
-  bars=bars.filter(b=>b[0]>=cutoff.getTime());
+  if(!c||!has(c.ohlcv)){GEO=null;ctx.fillStyle='#3a4654';ctx.font='13px monospace';ctx.fillText('차트 데이터 없음',W/2-50,H/2);$('#legend').innerHTML='';const hh=$('#chartHero');if(hh)hh.innerHTML='';const ab=$('#analysis');if(ab)ab.innerHTML='';return;}
+  const full=resample(c.ohlcv,state.interval);
+  const fc2=full.map(b=>b[4]);
+  const maF={5:sma(fc2,5),20:sma(fc2,20),60:sma(fc2,60),120:sma(fc2,120)};
+  const rsiF=rsiArr(fc2,14), bbF=bollArr(fc2,20,2);
+  const lastTs=full[full.length-1][0];const cutoff=new Date(lastTs);cutoff.setUTCMonth(cutoff.getUTCMonth()-state.period);
+  let s0=full.findIndex(b=>b[0]>=cutoff.getTime());if(s0<0)s0=0;
+  const bars=full.slice(s0);
   if(bars.length<2){GEO=null;ctx.fillStyle='#3a4654';ctx.font='12px monospace';ctx.fillText('기간 내 데이터 부족',W/2-60,H/2);return;}
-  const closes=bars.map(b=>b[4]),ma20=sma(closes,20),ma60=sma(closes,60);
-  const padR=60,padL=8,padT=10,padB=22,n=bars.length,cw=W-padR-padL,plotH=H-padT-padB;
+  const sl=a=>a.slice(s0);
+  const closes=bars.map(b=>b[4]);
+  const ma5=sl(maF[5]),ma20=sl(maF[20]),ma60=sl(maF[60]),ma120=sl(maF[120]);
+  const bbU=sl(bbF.up),bbL=sl(bbF.lo),rsiV=sl(rsiF);
+  const showMA=state.ind.ma,showBB=state.ind.boll,showRSI=state.ind.rsi;
+
+  const padR=60,padL=8,padT=10,padB=22,n=bars.length,cw=W-padR-padL;
+  const rsiH=showRSI?54:0, gap=showRSI?12:0;
+  const plotH=H-padT-padB-rsiH-gap;
   const bw=cw/n,body=Math.max(1,Math.min(bw*0.7,10));
   let pmin=Infinity,pmax=-Infinity;
   bars.forEach(b=>{pmin=Math.min(pmin,b[3]);pmax=Math.max(pmax,b[2]);});
-  [ma20,ma60].forEach(a=>a.forEach(v=>{if(has(v)){pmin=Math.min(pmin,v);pmax=Math.max(pmax,v);}}));
+  const incl=arr=>{if(arr)arr.forEach(v=>{if(has(v)){pmin=Math.min(pmin,v);pmax=Math.max(pmax,v);}});};
+  if(showMA){incl(ma5);incl(ma20);incl(ma60);incl(ma120);}
+  if(showBB){incl(bbU);incl(bbL);}
   const pad=(pmax-pmin)*0.08||1;pmin-=pad;pmax+=pad;
   const yP=v=>padT+plotH-(v-pmin)/(pmax-pmin)*plotH, xC=i=>padL+i*bw+bw/2;
   GEO={n,padL,cw,bw};
@@ -387,6 +463,14 @@ function drawChart(){
   ctx.strokeStyle='#141b22';ctx.fillStyle='#566472';
   for(let g=0;g<=4;g++){const v=pmin+(pmax-pmin)*g/4,y=yP(v);ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cw,y);ctx.stroke();ctx.fillText(Math.round(v).toLocaleString(),padL+cw+5,y+3);}
   const dir=closes[n-1]>=closes[0],col=dir?'#ff4d56':'#4d8dff',rgb=dir?'255,77,86':'77,141,255';
+  const line=(arr,c2,w,dash)=>{ctx.beginPath();let st=false;ctx.setLineDash(dash||[]);for(let i=0;i<n;i++){if(!has(arr[i])){st=false;continue;}const x=xC(i),y=yP(arr[i]);if(!st){ctx.moveTo(x,y);st=true}else ctx.lineTo(x,y);}ctx.strokeStyle=c2;ctx.lineWidth=w;ctx.stroke();ctx.setLineDash([]);};
+  if(showBB){
+    ctx.beginPath();let started=false;
+    for(let i=0;i<n;i++){if(!has(bbU[i])){continue;}const x=xC(i),y=yP(bbU[i]);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);}
+    for(let i=n-1;i>=0;i--){if(!has(bbL[i]))continue;ctx.lineTo(xC(i),yP(bbL[i]));}
+    ctx.closePath();ctx.fillStyle='rgba(155,109,216,.07)';ctx.fill();
+    line(bbU,'rgba(155,109,216,.55)',1);line(bbL,'rgba(155,109,216,.55)',1);
+  }
   if(state.chartType==='area'){
     const g=ctx.createLinearGradient(0,padT,0,padT+plotH);
     g.addColorStop(0,`rgba(${rgb},.38)`);g.addColorStop(.55,`rgba(${rgb},.10)`);g.addColorStop(1,`rgba(${rgb},0)`);
@@ -398,31 +482,53 @@ function drawChart(){
   }else{
     bars.forEach((b,i)=>{const x=xC(i),up=b[4]>=b[1],cc=up?'#ff4d56':'#4d8dff';ctx.strokeStyle=cc;ctx.fillStyle=cc;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,yP(b[2]));ctx.lineTo(x,yP(b[3]));ctx.stroke();const yo=yP(b[1]),yc=yP(b[4]);ctx.fillRect(x-body/2,Math.min(yo,yc),body,Math.max(1,Math.abs(yc-yo)));});
   }
-  const line=(arr,c2,w)=>{ctx.beginPath();let st=false;for(let i=0;i<n;i++){if(!has(arr[i])){st=false;continue;}const x=xC(i),y=yP(arr[i]);if(!st){ctx.moveTo(x,y);st=true}else ctx.lineTo(x,y);}ctx.strokeStyle=c2;ctx.lineWidth=w;ctx.stroke();};
-  line(ma20,'#d8a24a',1.3);line(ma60,'#9b6dd8',1.3);
-  let hiI=0,loI=0;for(let i=0;i<n;i++){if(closes[i]>closes[hiI])hiI=i;if(closes[i]<closes[loI])loI=i;}
-  ctx.font='9px "IBM Plex Mono",monospace';
-  const mark=(i,top)=>{const x=xC(i),y=yP(closes[i]),t=`${Math.round(closes[i]).toLocaleString()}`;ctx.fillStyle=top?'#ff8088':'#8fb6ff';ctx.beginPath();ctx.arc(x,y,2.4,0,7);ctx.fill();ctx.fillStyle='#8593a1';const tw=ctx.measureText(t).width;ctx.fillText(t,Math.min(Math.max(x-tw/2,padL),padL+cw-tw),top?y-7:y+13);};
-  if(state.chartType==='area'){mark(hiI,true);mark(loI,false);}
-  ctx.fillStyle='#566472';const step=Math.ceil(n/7);
-  for(let i=0;i<n;i+=step){const d=new Date(bars[i][0]);const lbl=state.period<=6?`${d.getUTCMonth()+1}/${d.getUTCDate()}`:`${String(d.getUTCFullYear()).slice(2)}.${String(d.getUTCMonth()+1).padStart(2,'0')}`;ctx.fillText(lbl,xC(i)-12,H-6);}
+  if(showMA){line(ma5,'#54c8e8',1.1);line(ma20,'#d8a24a',1.3);line(ma60,'#9b6dd8',1.3);line(ma120,'#e0607a',1.1);}
   const ex=xC(n-1),ey=yP(closes[n-1]);
   ctx.save();ctx.shadowColor=col;ctx.shadowBlur=10;ctx.fillStyle=col;ctx.beginPath();ctx.arc(ex,ey,3.6,0,7);ctx.fill();ctx.restore();
   const pill=Math.round(closes[n-1]).toLocaleString();ctx.font='10px "IBM Plex Mono",monospace';
   const pw=ctx.measureText(pill).width+12;ctx.fillStyle=col;ctx.beginPath();
   (ctx.roundRect?ctx.roundRect(padL+cw+3,ey-9,pw,18,4):ctx.rect(padL+cw+3,ey-9,pw,18));ctx.fill();
   ctx.fillStyle='#0b0f14';ctx.fillText(pill,padL+cw+9,ey+3.5);
+  ctx.fillStyle='#566472';ctx.font='10px "IBM Plex Mono",monospace';const step=Math.ceil(n/7);
+  for(let i=0;i<n;i+=step){const d=new Date(bars[i][0]);const lbl=state.period<=6?`${d.getUTCMonth()+1}/${d.getUTCDate()}`:`${String(d.getUTCFullYear()).slice(2)}.${String(d.getUTCMonth()+1).padStart(2,'0')}`;ctx.fillText(lbl,xC(i)-12,H-6);}
+  if(showRSI){
+    const ry0=padT+plotH+gap, ryH=rsiH;
+    const yR=v=>ry0+ryH-(v/100)*ryH;
+    ctx.strokeStyle='#1b232d';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(padL,ry0);ctx.lineTo(padL,ry0+ryH);ctx.stroke();
+    [30,70].forEach(lv=>{const y=yR(lv);ctx.strokeStyle='rgba(216,162,74,.25)';ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cw,y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#566472';ctx.fillText(String(lv),padL+cw+5,y+3);});
+    ctx.beginPath();let st=false;for(let i=0;i<n;i++){if(!has(rsiV[i])){st=false;continue;}const x=xC(i),y=yR(rsiV[i]);if(!st){ctx.moveTo(x,y);st=true;}else ctx.lineTo(x,y);}
+    ctx.strokeStyle='#d8a24a';ctx.lineWidth=1.4;ctx.stroke();
+    ctx.fillStyle='#8593a1';ctx.fillText('RSI(14)',padL+2,ry0+10);
+  }
   const hi=HOVER!=null&&HOVER<n?HOVER:n-1;
-  drawLegend(hi,bars,ma20,ma60);
+  drawLegend(hi,bars,ma5,ma20,ma60,ma120,rsiV);
   if(HOVER!=null&&HOVER>=0&&HOVER<n){const x=xC(HOVER),y=yP(bars[HOVER][4]);
     ctx.strokeStyle='rgba(200,210,220,.3)';ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);ctx.stroke();ctx.setLineDash([]);
     ctx.fillStyle='#e6edf3';ctx.beginPath();ctx.arc(x,y,3.5,0,7);ctx.fill();}
+  renderAnalysis(c.ohlcv);
 }
-function drawLegend(i,bars,ma20,ma60){
+function renderAnalysis(ohlcv){
+  const box=$('#analysis');if(!box)return;
+  const ta=techSummary(ohlcv);
+  if(!ta){box.innerHTML='<span class="ta-txt" style="color:var(--faint)">기술적 요약: 데이터가 부족합니다.</span>';return;}
+  const oc=ta.overall==='강세'?'bull':ta.overall==='약세'?'bear':'';
+  const rc=ta.rsiState.includes('과매수')?'warn':ta.rsiState.includes('과매도')?'warn':ta.rsiState.includes('매수')?'bull':ta.rsiState.includes('매도')?'bear':'';
+  const ac=ta.align==='정배열'?'bull':ta.align==='역배열'?'bear':'';
+  box.innerHTML=`<div class="ta-badges">`+
+    `<span class="ta-badge ${oc}">종합 ${ta.overall}</span>`+
+    `<span class="ta-badge ${ac}">${ta.align}</span>`+
+    `<span class="ta-badge ${rc}">RSI ${ta.rsi!=null?ta.rsi.toFixed(0):'—'}</span>`+
+    `<span class="ta-badge">${ta.bbState}</span></div>`+
+    `<div class="ta-txt">${ta.txt}<span class="dis">※ 일봉 기준 기술적 지표 자동 요약 · 투자 권유가 아닙니다.</span></div>`;
+}
+function drawLegend(i,bars,ma5,ma20,ma60,ma120,rsiV){
   const b=bars[i],prev=i>0?bars[i-1][4]:b[1],chg=(b[4]-prev)/prev*100;
   const fc=v=>has(v)?Math.round(v).toLocaleString():'—';const d=new Date(b[0]);
   const ds=`${d.getUTCFullYear()}.${String(d.getUTCMonth()+1).padStart(2,'0')}.${String(d.getUTCDate()).padStart(2,'0')}`;
-  $('#legend').innerHTML=`<span style="color:var(--text2)">${ds}</span><span>종가 <b style="color:${chg>=0?'var(--up)':'var(--down)'}">${fc(b[4])}</b></span><span class="${chg>=0?'up':'down'}">${chg>=0?'+':''}${chg.toFixed(2)}%</span><span style="color:#d8a24a">MA20 ${fc(ma20[i])}</span><span style="color:#9b6dd8">MA60 ${fc(ma60[i])}</span>`;
+  let html=`<span style="color:var(--text2)">${ds}</span><span>종가 <b style="color:${chg>=0?'var(--up)':'var(--down)'}">${fc(b[4])}</b></span><span class="${chg>=0?'up':'down'}">${chg>=0?'+':''}${chg.toFixed(2)}%</span>`;
+  if(state.ind.ma)html+=`<span style="color:#54c8e8">MA5 ${fc(ma5[i])}</span><span style="color:#d8a24a">MA20 ${fc(ma20[i])}</span><span style="color:#9b6dd8">MA60 ${fc(ma60[i])}</span><span style="color:#e0607a">MA120 ${fc(ma120[i])}</span>`;
+  if(state.ind.rsi&&rsiV)html+=`<span style="color:#d8a24a">RSI ${has(rsiV[i])?rsiV[i].toFixed(0):'—'}</span>`;
+  $('#legend').innerHTML=html;
   const hero=$('#chartHero');const nm=((DATA.charts||{})[state.sym]||{}).name||state.sym||'';
   if(hero)hero.innerHTML=`<div class="nm">${nm}</div><div class="px ${cls(chg)}">${fc(b[4])}</div><div class="chg ${cls(chg)}">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(2)}%</div>`;
 }
