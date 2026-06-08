@@ -34,6 +34,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:12
 .brand{display:flex;align-items:baseline;gap:8px}
 .brand .logo{font-family:var(--mono);font-weight:600;color:var(--accent);font-size:15px;letter-spacing:.04em}
 .brand .sub{color:var(--muted);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.topbar .clock{margin-left:auto;font-family:var(--mono);color:var(--text2);font-size:11px}
 .topbar .copyright{margin-left:auto;font-family:var(--mono);color:var(--muted);font-size:10px;letter-spacing:.02em}
 .striprow{display:flex;align-items:stretch;background:var(--head);border-bottom:1px solid var(--border);flex:0 0 auto}
 .strip-badge{display:flex;align-items:center;gap:6px;padding:6px 12px;border-right:1px solid var(--border2);font-family:var(--mono);font-size:9.5px;color:var(--accent2);white-space:nowrap;background:rgba(216,162,74,.06)}
@@ -89,19 +90,34 @@ td{font-family:var(--mono);font-size:12px;text-align:right;padding:5px 6px;borde
 td:first-child{text-align:left;font-family:var(--sans);color:var(--text2)}
 tr:hover td{background:var(--panel2)}
 .tk{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.rk{display:inline-block;min-width:15px;color:var(--accent2);font-family:var(--mono);font-size:10px;font-weight:600;margin-right:3px}
 
 .widget-slot{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
 .widget-slot.nightbox{flex:0 0 auto;height:240px}
 .widget-slot iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;z-index:1}
 .widget-ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--faint);font-size:10.5px;line-height:1.55;padding:14px;font-family:var(--mono)}
+.night{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:10px 14px;gap:8px}
+.night .sub{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.night .big{font-family:var(--mono);font-size:26px;font-weight:600}
 .evtwrap{position:absolute;inset:0;overflow:auto;scrollbar-width:thin}
+.evt{display:flex;gap:9px;padding:7px 10px;border-bottom:1px solid var(--border);align-items:baseline}
+.evt .t{font-family:var(--mono);font-size:10px;color:var(--accent2);min-width:44px;flex:0 0 auto}
+.evt .e{font-size:12px;color:var(--text);flex:1 1 auto;line-height:1.4}
+.fl{font-size:8.5px;padding:1px 5px;border-radius:3px;font-family:var(--mono);flex:0 0 auto}
+.fl.kr{background:rgba(77,141,255,.15);color:#7fb0ff} .fl.us{background:rgba(231,185,78,.15);color:#e7b94e} .fl.hi{background:rgba(255,77,86,.16);color:#ff8088}
 
-.area-news .pb{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0 18px;max-height:200px}
-.news-item{padding:8px 0;border-bottom:1px solid var(--border)}
-.news-item a{color:var(--text);text-decoration:none;font-size:12.5px;font-weight:500;line-height:1.4}
-.news-item a:hover{color:var(--accent)}
-.news-item .sum{color:var(--text2);font-size:11px;margin-top:3px;line-height:1.45}
-.news-item .src{color:var(--muted);font-size:10px;margin-top:4px;font-family:var(--mono);display:flex;gap:8px}
+.newscols{display:grid;grid-template-columns:1fr 1fr;gap:0;flex:1 1 auto;min-height:0}
+.newscol{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--border)}
+.newscol:last-child{border-right:0}
+.newscol-h{flex:0 0 auto;padding:5px 12px;font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.08em;color:var(--accent2);background:rgba(216,162,74,.05);border-bottom:1px solid var(--border)}
+.newscol:last-child .newscol-h{color:#7fa8d8;background:rgba(77,141,255,.05)}
+.newslist{flex:1 1 auto;overflow-y:auto;scrollbar-width:thin;max-height:188px}
+.newslist::-webkit-scrollbar{width:6px} .newslist::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.nrow{display:flex;align-items:baseline;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);text-decoration:none}
+.nrow:hover{background:var(--panel2)}
+.nrow .nt{flex:1 1 auto;color:var(--text);font-size:12px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nrow:hover .nt{color:var(--accent)}
+.nrow .nm{flex:0 0 auto;color:var(--muted);font-size:9.5px;font-family:var(--mono)}
 
 .chartpanel{height:100%}
 .chartbar{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap}
@@ -197,7 +213,16 @@ canvas{display:block;width:100%;height:100%;cursor:crosshair}
 
     <div class="panel area-news">
       <div class="ph"><h2>전일·새벽 주요 뉴스</h2><span class="tag" id="newsTag"></span></div>
-      <div class="pb" id="news"></div>
+      <div class="newscols">
+        <div class="newscol">
+          <div class="newscol-h">국내</div>
+          <div class="newslist" id="newsDom"></div>
+        </div>
+        <div class="newscol">
+          <div class="newscol-h">국제</div>
+          <div class="newslist" id="newsIntl"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -238,7 +263,7 @@ const SAMPLE={
     losers:[{ticker:"068270",name:"셀트리온",last:178000,change_pct:-8.9,volume:2200000},{ticker:"207940",name:"삼성바이오로직스",last:742000,change_pct:-6.2,volume:240000},{ticker:"035720",name:"카카오",last:38900,change_pct:-5.4,volume:6800000},{ticker:"259960",name:"크래프톤",last:298000,change_pct:-4.8,volume:410000},{ticker:"036570",name:"엔씨소프트",last:184500,change_pct:-4.1,volume:520000}],
     mcap_all:[{ticker:"005930",name:"삼성전자",change_pct:1.2,mktcap:443000000000000},{ticker:"000660",name:"SK하이닉스",change_pct:2.8,mktcap:144000000000000},{ticker:"373220",name:"LG에너지솔루션",change_pct:-1.1,mktcap:89000000000000},{ticker:"207940",name:"삼성바이오로직스",change_pct:-6.2,mktcap:52000000000000},{ticker:"005380",name:"현대차",change_pct:0.4,mktcap:50000000000000},{ticker:"000270",name:"기아",change_pct:0.9,mktcap:38000000000000},{ticker:"068270",name:"셀트리온",change_pct:-8.9,mktcap:36000000000000},{ticker:"105560",name:"KB금융",change_pct:1.7,mktcap:34000000000000},{ticker:"005935",name:"삼성전자우",change_pct:1.0,mktcap:33000000000000},{ticker:"012450",name:"한화에어로스페이스",change_pct:7.1,mktcap:31000000000000}]
   },
-  news:[{title:"美 반도체株 급등에 SOX 1.4%↑… 삼성·하이닉스 강세 기대",summary:"엔비디아 실적 호조와 HBM 수요 전망에 필라델피아 반도체지수가 강세 마감.",source:"샘플경제",url:"#",published_at:"06-03 06:40"},{title:"원/달러 1370원대 등락… 외국인 현물 매도 지속",summary:"환율 상단이 막히지 않으면 외국인 순매수 전환이 지연될 수 있다는 분석.",source:"샘플경제",url:"#",published_at:"06-03 05:10"}],
+  news:[{title:"코스피 외국인 순매수 전환… 반도체 대형주 강세",summary:"",source:"샘플경제",url:"#",published_at:"06-03 08:10",scope:"domestic"},{title:"원/달러 1370원대 등락, 수출주 영향 주목",summary:"",source:"샘플경제",url:"#",published_at:"06-03 07:40",scope:"domestic"},{title:"삼성전자·SK하이닉스 HBM 수요 전망에 투자심리 개선",summary:"",source:"샘플경제",url:"#",published_at:"06-03 06:55",scope:"domestic"},{title:"오늘 쿼드러플위칭… 프로그램 매매 변동성 유의",summary:"",source:"샘플데일리",url:"#",published_at:"06-02 18:20",scope:"domestic"},{title:"美 SOX 반도체지수 1.4%↑… 엔비디아 실적 호조",summary:"",source:"샘플경제",url:"#",published_at:"06-03 06:40",scope:"intl"},{title:"연준 인사 발언에 나스닥 강세, 금리 인하 기대",summary:"",source:"샘플경제",url:"#",published_at:"06-03 05:20",scope:"intl"},{title:"국제유가 하락, WTI 배럴당 68달러대",summary:"",source:"샘플경제",url:"#",published_at:"06-03 04:50",scope:"intl"}],
   charts:{"코스피":{name:"코스피 지수",ohlcv:genOHLC(7,T0,9.4,1900,0.0003,0.011)},"코스닥":{name:"코스닥 지수",ohlcv:genOHLC(19,T0,9.4,650,0.00012,0.015)}}
 };
 
@@ -303,9 +328,13 @@ function renderMovers(){
 }
 
 function renderNews(){
-  const n=DATA.news;$('#newsTag').textContent=has(n)?n.length+'건':'';
-  if(!has(n)){$('#news').innerHTML=ND;return;}
-  $('#news').innerHTML=n.map(x=>`<div class="news-item"><a href="${x.url||'#'}" target="_blank" rel="noopener">${x.title}</a>${x.summary?`<div class="sum">${x.summary}</div>`:''}<div class="src"><span>${x.source||''}</span><span>${x.published_at||''}</span>${x.url&&x.url!=='#'?'<span>원문 →</span>':''}</div></div>`).join('');
+  const n=DATA.news;
+  if(!has(n)){$('#newsDom').innerHTML=ND;$('#newsIntl').innerHTML=ND;$('#newsTag').textContent='';return;}
+  const dom=n.filter(x=>x.scope!=='intl'), intl=n.filter(x=>x.scope==='intl');
+  $('#newsTag').textContent=n.length+'건';
+  const li=x=>`<a class="nrow" href="${x.url||'#'}" target="_blank" rel="noopener"><span class="nt">${x.title}</span><span class="nm">${x.source||''} · ${x.published_at||''}</span></a>`;
+  $('#newsDom').innerHTML=has(dom)?dom.map(li).join(''):ND;
+  $('#newsIntl').innerHTML=has(intl)?intl.map(li).join(''):ND;
 }
 
 function renderWidgets(){
@@ -372,7 +401,6 @@ function bollArr(closes,p=20,k=2){
     const sd=Math.sqrt(s/p);up[i]=mid[i]+k*sd;lo[i]=mid[i]-k*sd;}
   return {mid,up,lo};
 }
-// 일봉 원본 기준 기술적 상태 요약 (규칙 기반, 상태 서술 톤)
 function techSummary(ohlcv){
   const cl=ohlcv.map(b=>b[4]);if(cl.length<60)return null;
   const last=i=>{for(let j=i.length-1;j>=0;j--)if(i[j]!=null)return i[j];return null;};
@@ -388,7 +416,7 @@ function techSummary(ohlcv){
   }
   let rsiState='중립';
   if(rsi!=null){if(rsi>=70)rsiState='과매수권';else if(rsi<=30)rsiState='과매도권';
-    else if(rsi>=50)rsiState='중립적 매수우위';else rsiState='중립적 매도우위';}
+    else if(rsi>=55)rsiState='중립적 매수우위';else if(rsi<=45)rsiState='중립적 매도우위';else rsiState='중립';}
   let bbState='중심선 부근';
   if(pctB!=null){if(pctB>=0.8)bbState='상단 밴드 부근';else if(pctB<=0.2)bbState='하단 밴드 부근';
     else if(pctB>=0.5)bbState='중심선~상단 사이';else bbState='중심선~하단 사이';}
@@ -396,8 +424,8 @@ function techSummary(ohlcv){
   if(ma20!=null)score+=px>=ma20?1:-1;
   if(ma60!=null)score+=px>=ma60?1:-1;
   if(align==='정배열')score+=1;else if(align==='역배열')score-=1;
-  if(rsi!=null){if(rsi>=70)score+=0;else if(rsi>=50)score+=1;else if(rsi<=30)score-=0;else score-=1;}
-  if(pctB!=null)score+=pctB>=0.5?1:-1;
+  if(rsi!=null){if(rsi>=55&&rsi<70)score+=1;else if(rsi<=45&&rsi>30)score-=1;}
+  if(pctB!=null)score+=pctB>=0.55?1:(pctB<=0.45?-1:0);
   const overall=score>=2?'강세':score<=-2?'약세':'중립';
   const pos20=ma20!=null?(px>=ma20?'20일선 위':'20일선 아래'):'20일선 비교 불가';
   const pos60=ma60!=null?(px>=ma60?'60일선 위':'60일선 아래'):'60일선 비교 불가';
@@ -468,8 +496,8 @@ function drawChart(){
     ctx.beginPath();let started=false;
     for(let i=0;i<n;i++){if(!has(bbU[i])){continue;}const x=xC(i),y=yP(bbU[i]);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);}
     for(let i=n-1;i>=0;i--){if(!has(bbL[i]))continue;ctx.lineTo(xC(i),yP(bbL[i]));}
-    ctx.closePath();ctx.fillStyle='rgba(155,109,216,.07)';ctx.fill();
-    line(bbU,'rgba(155,109,216,.55)',1);line(bbL,'rgba(155,109,216,.55)',1);
+    ctx.closePath();ctx.fillStyle='rgba(120,140,160,.08)';ctx.fill();
+    line(bbU,'rgba(150,165,180,.7)',1,[5,4]);line(bbL,'rgba(150,165,180,.7)',1,[5,4]);
   }
   if(state.chartType==='area'){
     const g=ctx.createLinearGradient(0,padT,0,padT+plotH);
@@ -503,7 +531,18 @@ function drawChart(){
   const hi=HOVER!=null&&HOVER<n?HOVER:n-1;
   drawLegend(hi,bars,ma5,ma20,ma60,ma120,rsiV);
   if(HOVER!=null&&HOVER>=0&&HOVER<n){const x=xC(HOVER),y=yP(bars[HOVER][4]);
-    ctx.strokeStyle='rgba(200,210,220,.3)';ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);ctx.stroke();ctx.setLineDash([]);
+    ctx.strokeStyle='rgba(200,210,220,.3)';ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cw,y);ctx.stroke();
+    ctx.setLineDash([]);
+    const pv=Math.round(bars[HOVER][4]).toLocaleString();ctx.font='10px "IBM Plex Mono",monospace';
+    const pvw=ctx.measureText(pv).width+10;ctx.fillStyle='#2a3340';
+    (ctx.roundRect?ctx.roundRect(padL+cw+3,y-8,pvw,16,3):ctx.rect(padL+cw+3,y-8,pvw,16));ctx.fill();
+    ctx.fillStyle='#e6edf3';ctx.fillText(pv,padL+cw+8,y+3.5);
+    const dd=new Date(bars[HOVER][0]);const dl=`${String(dd.getUTCFullYear()).slice(2)}.${String(dd.getUTCMonth()+1).padStart(2,'0')}.${String(dd.getUTCDate()).padStart(2,'0')}`;
+    const dlw=ctx.measureText(dl).width+10;let dx=Math.min(Math.max(x-dlw/2,padL),padL+cw-dlw);
+    ctx.fillStyle='#2a3340';(ctx.roundRect?ctx.roundRect(dx,padT+plotH+2,dlw,15,3):ctx.rect(dx,padT+plotH+2,dlw,15));ctx.fill();
+    ctx.fillStyle='#e6edf3';ctx.fillText(dl,dx+5,padT+plotH+12.5);
     ctx.fillStyle='#e6edf3';ctx.beginPath();ctx.arc(x,y,3.5,0,7);ctx.fill();}
   renderAnalysis(c.ohlcv);
 }
