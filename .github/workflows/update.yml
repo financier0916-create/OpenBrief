@@ -1,10 +1,11 @@
 name: Daily Premarket Snapshot
 
-# 매일 07:40 KST(=UTC 22:40 전날). KRX 전일 데이터는 새벽에 확정되므로 장 시작(09:00) 전 여유있게 실행.
-# 참고: GitHub 예약 실행은 서버 사정으로 수십 분 늦을 수 있어 일찍 잡아둠.
+# 매일 07:40·08:10 KST(=UTC 22:40·23:10 전날) 두 번 시도.
+# GitHub 예약 실행은 가끔 누락되므로 백업 시각을 둠. (둘 다 돌아도 결과 동일 — 덮어쓰기)
 on:
   schedule:
     - cron: '40 22 * * *'
+    - cron: '10 23 * * *'
   workflow_dispatch:
 
 # 액션을 Node 24에서 실행 (Node 20 지원 종료 대비). 이 한 줄로 deprecation 경고 해소.
