@@ -8,7 +8,6 @@ on:
     - cron: '10 23 * * *'
   workflow_dispatch:
 
-# 액션을 Node 24에서 실행 (Node 20 지원 종료 대비). 이 한 줄로 deprecation 경고 해소.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -40,6 +39,7 @@ jobs:
         run: python collect.py --out snapshot.json
         env:
           KRX_API_KEY: ${{ secrets.KRX_API_KEY }}
+          PREV_SNAPSHOT_URL: https://financier0916-create.github.io/KRterminal/snapshot.json
       - name: Assemble site
         run: |
           mkdir -p _site
