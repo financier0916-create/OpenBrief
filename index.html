@@ -63,11 +63,21 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:12
 
 .grid{flex:1 1 auto;display:grid;gap:7px;padding:7px;min-height:0;
   grid-template-columns:280px 1fr 320px;grid-template-rows:1fr auto;
-  grid-template-areas:"left center right" "news news news";overflow:hidden}
+  grid-template-areas:"left center right" "news news memory";overflow:hidden}
 .col{display:flex;flex-direction:column;gap:7px;min-height:0;overflow-y:auto;scrollbar-width:thin}
 .col::-webkit-scrollbar{width:6px} .col::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 .area-left{grid-area:left} .area-center{grid-area:center;overflow:hidden}
-.area-right{grid-area:right} .area-news{grid-area:news}
+.area-right{grid-area:right} .area-news{grid-area:news} .area-memory{grid-area:memory}
+.memwrap{flex:1 1 auto;overflow:hidden;padding:0}
+.memtbl{width:100%;border-collapse:collapse}
+.memtbl th{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;text-align:right;padding:5px 10px;font-weight:500;border-bottom:1px solid var(--border)}
+.memtbl th:first-child{text-align:left}
+.memtbl td{font-family:var(--mono);font-size:11.5px;text-align:right;padding:5px 10px;border-top:1px solid var(--border)}
+.memtbl td:first-child{text-align:left;font-family:var(--sans);color:var(--text);font-size:11px}
+.memtbl tr:hover td{background:var(--panel2)}
+.mem-sub{font-size:9px;color:var(--faint);font-family:var(--sans);display:block;margin-top:1px}
+.mem-upd{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.mem-upd.help{border-bottom:1px dotted var(--faint);cursor:help}
 
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:5px;display:flex;flex-direction:column;min-height:0}
 .panel.flex{flex:1 1 auto}
@@ -125,7 +135,7 @@ tr:hover td{background:var(--panel2)}
 .newscol:last-child{border-right:0}
 .newscol-h{flex:0 0 auto;padding:5px 12px;font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.08em;color:var(--accent2);background:rgba(216,162,74,.05);border-bottom:1px solid var(--border)}
 .newscol:last-child .newscol-h{color:#7fa8d8;background:rgba(77,141,255,.05)}
-.newslist{flex:1 1 auto;overflow-y:auto;scrollbar-width:thin;max-height:188px}
+.newslist{flex:1 1 auto;overflow-y:auto;scrollbar-width:thin;max-height:150px}
 .newslist::-webkit-scrollbar{width:6px} .newslist::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 .nrow{display:flex;align-items:baseline;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);text-decoration:none}
 .nrow:hover{background:var(--panel2)}
@@ -162,6 +172,9 @@ canvas{display:block;width:100%;height:100%;cursor:crosshair}
 .ta-badge.bear{color:#8fb6ff;border-color:rgba(77,141,255,.4);background:rgba(77,141,255,.08)}
 .ta-badge.warn{color:var(--accent2);border-color:rgba(216,162,74,.4);background:rgba(216,162,74,.08)}
 .ta-txt{font-size:11.5px;color:var(--text);line-height:1.5;flex:1 1 280px;min-width:240px}
+.ta-txt .ta-line{display:block}
+.ta-txt .ta-line+.ta-line{margin-top:2px}
+.ta-txt .ta-sum{color:#e6edf3;font-weight:500;margin-top:4px}
 .ta-txt .dis{display:block;color:var(--faint);font-size:9.5px;font-family:var(--mono);margin-top:3px}
 .chart-hero{position:absolute;top:14px;left:16px;z-index:2;pointer-events:none}
 .chart-hero .nm{font-size:11px;color:var(--text2);letter-spacing:.06em;text-transform:uppercase}
@@ -173,8 +186,8 @@ canvas{display:block;width:100%;height:100%;cursor:crosshair}
 .foot .ok{color:var(--accent)} .foot .miss{color:var(--warn)}
 .foot .right{margin-left:auto}
 
-@media (max-width:1100px){.grid{grid-template-columns:1fr 1fr;grid-template-areas:"center center" "left right" "news news"}.area-center{height:62vh}}
-@media (max-width:680px){.grid{grid-template-columns:1fr;grid-template-areas:"center" "left" "right" "news"}.area-center{height:56vh}}
+@media (max-width:1100px){.grid{grid-template-columns:1fr 1fr;grid-template-areas:"center center" "left right" "news memory"}.area-center{height:62vh}}
+@media (max-width:680px){.grid{grid-template-columns:1fr;grid-template-areas:"center" "left" "right" "news" "memory"}.area-center{height:56vh}}
 </style>
 </head>
 <body>
@@ -246,6 +259,11 @@ canvas{display:block;width:100%;height:100%;cursor:crosshair}
         </div>
       </div>
     </div>
+
+    <div class="panel area-memory">
+      <div class="ph"><h2>메모리 현물가</h2><span class="tag" id="memTag">출처: TrendForce</span></div>
+      <div class="memwrap" id="memory"></div>
+    </div>
   </div>
 
   <div class="foot">
@@ -290,18 +308,25 @@ const SAMPLE={
     mcap_all:[{ticker:"005930",name:"삼성전자",change_pct:1.2,mktcap:443000000000000},{ticker:"000660",name:"SK하이닉스",change_pct:2.8,mktcap:144000000000000},{ticker:"373220",name:"LG에너지솔루션",change_pct:-1.1,mktcap:89000000000000},{ticker:"207940",name:"삼성바이오로직스",change_pct:-6.2,mktcap:52000000000000},{ticker:"005380",name:"현대차",change_pct:0.4,mktcap:50000000000000},{ticker:"000270",name:"기아",change_pct:0.9,mktcap:38000000000000},{ticker:"068270",name:"셀트리온",change_pct:-8.9,mktcap:36000000000000},{ticker:"105560",name:"KB금융",change_pct:1.7,mktcap:34000000000000},{ticker:"005935",name:"삼성전자우",change_pct:1.0,mktcap:33000000000000},{ticker:"012450",name:"한화에어로스페이스",change_pct:7.1,mktcap:31000000000000}]
   },
   news:[{title:"코스피 외국인 순매수 전환… 반도체 대형주 강세",summary:"",source:"샘플경제",url:"#",published_at:"06-03 08:10",scope:"domestic"},{title:"원/달러 1370원대 등락, 수출주 영향 주목",summary:"",source:"샘플경제",url:"#",published_at:"06-03 07:40",scope:"domestic"},{title:"삼성전자·SK하이닉스 HBM 수요 전망에 투자심리 개선",summary:"",source:"샘플경제",url:"#",published_at:"06-03 06:55",scope:"domestic"},{title:"오늘 쿼드러플위칭… 프로그램 매매 변동성 유의",summary:"",source:"샘플데일리",url:"#",published_at:"06-02 18:20",scope:"domestic"},{title:"美 SOX 반도체지수 1.4%↑… 엔비디아 실적 호조",summary:"",source:"샘플경제",url:"#",published_at:"06-03 06:40",scope:"intl"},{title:"연준 인사 발언에 나스닥 강세, 금리 인하 기대",summary:"",source:"샘플경제",url:"#",published_at:"06-03 05:20",scope:"intl"},{title:"국제유가 하락, WTI 배럴당 68달러대",summary:"",source:"샘플경제",url:"#",published_at:"06-03 04:50",scope:"intl"}],
-  charts:{"코스피":{name:"코스피 지수",ohlcv:genOHLC(7,T0,9.4,1900,0.0003,0.011)},"코스닥":{name:"코스닥 지수",ohlcv:genOHLC(19,T0,9.4,650,0.00012,0.015)}}
+  charts:{"코스피":{name:"코스피 지수",ohlcv:genOHLC(7,T0,9.4,1900,0.0003,0.011)},"코스닥":{name:"코스닥 지수",ohlcv:genOHLC(19,T0,9.4,650,0.00012,0.015)}},
+  memory:{dram:[{name:"DDR5 16Gb 4800/5600",price:44.00,change_pct:0.99},{name:"DDR4 16Gb 3200",price:64.88,change_pct:0.78},{name:"DDR4 8Gb 3200",price:35.90,change_pct:0.56}],nand:[{name:"NAND MLC 64Gb",price:22.18,change_pct:2.31},{name:"NAND MLC 32Gb",price:11.50,change_pct:0.00},{name:"NAND SLC 2Gb",price:3.80,change_pct:0.53}],dram_updated:"2026-06-09 18:10",nand_updated:"2026-05-25 14:40"}
 };
 
 let DATA=null,DEMO=false;
 const SAMPLE_SCHEDULE=[
   {time:"08:00",region:"KR",event:"한국 5월 수출입동향 (관세청)",importance:"hi"},
-  {time:"21:30",region:"US",event:"미국 5월 비농업고용지수·실업률",importance:"hi"}
+  {time:"09:00",region:"KR",event:"삼성전자 임시주주총회",importance:"mid"},
+  {time:"16:00",region:"KR",event:"5월 외환보유액 (한국은행)",importance:"mid"},
+  {time:"21:30",region:"US",event:"미국 5월 비농업고용지수·실업률",importance:"hi"},
+  {time:"23:00",region:"US",event:"미국 4월 도매재고",importance:"mid"},
+  {time:"-",region:"KR",event:"6월 선물·옵션 동시만기일(쿼드러플위칭)",importance:"hi"}
 ];
 const PERIODS=[["1M",1],["3M",3],["6M",6],["1Y",12],["2Y",24],["5Y",60],["10Y",120]];
 const INTERVALS=[["1D","D"],["1W","W"],["1M","M"]];
 let state={sym:null,period:12,interval:"D",chartType:"area",ind:{ma:true,rsi:true}};
 let moverTab='gainers';
+let mcapMkt='kospi';
+function wonCap(n){if(!has(n))return '—';const jo=n/1e12;if(jo>=1)return jo.toFixed(1)+'조';return Math.round(n/1e8).toLocaleString()+'억';}
 
 async function load(){
   try{const r=await fetch('snapshot.json',{cache:'no-store'});if(!r.ok)throw 0;DATA=await r.json();DEMO=false;}
@@ -312,7 +337,7 @@ load();
 
 function render(){
   $('#asof').textContent=DATA.meta&&DATA.meta.generated_at?DATA.meta.generated_at.replace('T',' ').slice(0,16):(DEMO?'샘플':'데이터 없음');
-  [renderStrip,renderTicker,renderHeat,renderMovers,renderNews,renderStatus,initChartControls,renderWidgets]
+  [renderStrip,renderTicker,renderHeat,renderMovers,renderNews,renderMemory,renderStatus,initChartControls,renderWidgets]
     .forEach(fn=>{try{fn();}catch(e){console.error('[render]',fn.name,e);}});
 }
 
@@ -350,6 +375,7 @@ function renderTicker(){
   el.parentElement.style.display='';
   const item=(r,i)=>`<span class="ti"><span class="ti-rk">${i+1}</span><span class="ti-nm">${r.name}</span><span class="ti-cap">${wonCap(r.mktcap)}</span><span class="ti-chg ${cls(r.change_pct)}">${has(r.change_pct)?(r.change_pct>0?'+':'')+r.change_pct.toFixed(2)+'%':''}</span></span>`;
   const seq=rows.map(item).join('<span class="ti-sep">·</span>');
+  // 끊김 없는 무한 루프를 위해 동일 시퀀스 2벌
   el.innerHTML=`<div class="ti-track">${seq}<span class="ti-sep">·</span>${seq}<span class="ti-sep">·</span></div>`;
 }
 
@@ -363,8 +389,29 @@ function renderNews(){
   $('#newsIntl').innerHTML=has(intl)?intl.map(li).join(''):ND;
 }
 
+function widgetSlot(sel,url,ph){
+  const el=$(sel);if(!el)return;
+  el.innerHTML=(url&&url.trim())
+    ? `<div class="widget-ph">위젯 로딩 중…</div><iframe src="${url}" loading="lazy" referrerpolicy="origin"></iframe>`
+    : `<div class="widget-ph">${ph}</div>`;
+}
+function renderMemory(){
+  const el=$('#memory');if(!el)return;
+  const m=DATA.memory;
+  if(!has(m)||(!has(m.dram)&&!has(m.nand))){el.innerHTML=`<div style="padding:14px" class="nodata">데이터 없음</div>`;return;}
+  const dram=m.dram||[], nand=m.nand||[];
+  const fmtP=v=>has(v)?Number(v).toLocaleString('ko-KR',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+  const chgCell=v=>has(v)?`<span class="${cls(v)}">${v>0?'▲':v<0?'▼':'—'} ${sign(v)}${v.toFixed(2)}%</span>`:'—';
+  const rows=arr=>arr.map(r=>`<tr><td>${r.name}</td><td>$${fmtP(r.price)}</td><td>${chgCell(r.change_pct)}</td></tr>`).join('');
+  const dramUpd=m.dram_updated?`<span class="mem-upd">DRAM 갱신 ${m.dram_updated} (GMT+8)</span>`:'';
+  const nandTip="NAND 현물 시장은 거래가 적어 매일 갱신되지 않습니다. 표시된 값은 마지막 갱신일 기준입니다.";
+  const nandUpd=m.nand_updated?`<span class="mem-upd help" title="${nandTip}">NAND 갱신 ${m.nand_updated} (GMT+8) ⓘ</span>`:'';
+  el.innerHTML=`<table class="memtbl"><thead><tr><th>품목</th><th>현재가(USD)</th><th>전일대비</th></tr></thead>`+
+    `<tbody>${rows(dram)}${rows(nand)}</tbody></table>`+
+    `<div style="padding:6px 10px;display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--border)">${dramUpd}${nandUpd}</div>`;
+}
 function renderWidgets(){
-  if(DEMO){renderSampleCalendar();return;}
+  if(DEMO){renderSampleNight();renderSampleCalendar();return;}
   tvCalendar($('#calSlot'));
   tvNight($('#nightSlot'));
 }
@@ -391,9 +438,21 @@ function tvCalendar(el){
     locale:'kr',importanceFilter:'0,1',countryFilter:'kr,us'});
   el.querySelector('.tradingview-widget-container').appendChild(s);
 }
+function renderSampleNight(){
+  const pts=[366.2,366.9,367.1,366.5,367.4,368.1,367.8,368.6,368.9];
+  const w=120,h=34,mn=Math.min(...pts),mx=Math.max(...pts);
+  const d=pts.map((v,i)=>`${(i/(pts.length-1)*w).toFixed(1)},${(h-(v-mn)/((mx-mn)||1)*h).toFixed(1)}`).join(' ');
+  const up=pts[pts.length-1]>=pts[0],col=up?'var(--up)':'var(--down)';
+  $('#nightSlot').innerHTML=`<div class="night"><div class="sub">K200 야간선물 · 미국시간 연동 (샘플)</div>
+    <div style="display:flex;align-items:flex-end;gap:12px"><span class="big">368.90</span>
+    <span class="mono ${up?'up':'down'}" style="font-size:13px">+0.31%</span>
+    <svg width="${w}" height="${h}" style="margin-left:auto"><polyline points="${d}" fill="none" stroke="${col}" stroke-width="1.5"/></svg></div></div>`;
+}
 function renderSampleCalendar(){
-  $('#calSlot').innerHTML=`<div class="evtwrap" style="padding:8px">`+SAMPLE_SCHEDULE.map(e=>
-    `<div class="news-item"><a href="#">${e.time} · ${e.event}</a><div class="src"><span>${e.region}</span></div></div>`).join('')+`</div>`;
+  $('#calSlot').innerHTML=`<div class="evtwrap">`+SAMPLE_SCHEDULE.map(e=>
+    `<div class="evt"><span class="t">${e.time}</span><span class="e">${e.event}</span>`+
+    `<span class="fl ${e.region==='US'?'us':'kr'}">${e.region}</span>`+
+    (e.importance==='hi'?'<span class="fl hi">중요</span>':'')+`</div>`).join('')+`</div>`;
 }
 
 function renderStatus(){
@@ -403,6 +462,7 @@ function renderStatus(){
   $('#sources').textContent=DEMO?'※ 샘플 모드 — 실데이터 아님':'출처: 자동 수집 스냅샷 + TradingView 위젯';
 }
 
+/* ===== chart ===== */
 function resample(ohlcv,iv){
   if(iv==='D')return ohlcv;
   const key=t=>{const d=new Date(t);if(iv==='M')return d.getUTCFullYear()*12+d.getUTCMonth();const onejan=Date.UTC(d.getUTCFullYear(),0,1);return d.getUTCFullYear()*100+Math.floor((t-onejan)/(7*86400000));};
@@ -427,56 +487,115 @@ function bollArr(closes,p=20,k=2){
     const sd=Math.sqrt(s/p);up[i]=mid[i]+k*sd;lo[i]=mid[i]-k*sd;}
   return {mid,up,lo};
 }
-// 일봉 원본 기준 기술적 상태 요약 (규칙 기반, 상태 서술 톤)
+// 일봉 원본 기준 기술적 상태 요약 (규칙 기반, 중급 투자자용 세분화)
 function techSummary(ohlcv){
   const cl=ohlcv.map(b=>b[4]);if(cl.length<60)return null;
-  const last=i=>{for(let j=i.length-1;j>=0;j--)if(i[j]!=null)return i[j];return null;};
+  const lastN=(arr,k=0)=>{let cnt=0;for(let j=arr.length-1;j>=0;j--){if(arr[j]!=null){if(cnt===k)return arr[j];cnt++;}}return null;};
   const px=cl[cl.length-1];
-  const ma5=last(sma(cl,5)),ma20=last(sma(cl,20)),ma50=last(sma(cl,50)),ma120=last(sma(cl,120));
-  const rsi=last(rsiArr(cl,14));
-  // 50일 이격도 = (종가 / MA50) × 100
+  const ma5A=sma(cl,5),ma20A=sma(cl,20),ma50A=sma(cl,50),ma120A=sma(cl,120);
+  const ma5=lastN(ma5A),ma20=lastN(ma20A),ma50=lastN(ma50A),ma120=lastN(ma120A);
+  const ma5p=lastN(ma5A,1),ma20p=lastN(ma20A,1);  // 직전값(크로스 감지용)
+  const rsiA=rsiArr(cl,14),rsi=lastN(rsiA),rsiP=lastN(rsiA,1);
   const disp=(ma50!=null&&ma50>0)?(px/ma50*100):null;
-  // 배열
-  let align='혼조';
+
+  // ── ① 이평선 배열 5단계 세분화 ──
+  let align='밀집/혼조', alignDetail='';
   if(ma5!=null&&ma20!=null&&ma50!=null&&ma120!=null){
-    if(ma5>ma20&&ma20>ma50&&ma50>ma120)align='정배열';
-    else if(ma5<ma20&&ma20<ma50&&ma50<ma120)align='역배열';
+    const longUp=ma50>ma120, longDn=ma50<ma120;
+    const shortUp=ma5>ma20, shortDn=ma5<ma20;
+    const ma20v50=ma20>ma50;
+    // 이평선 밀집도(최대-최소)/종가 — 1% 미만이면 밀집
+    const arr=[ma5,ma20,ma50,ma120],spread=(Math.max(...arr)-Math.min(...arr))/px;
+    if(ma5>ma20&&ma20>ma50&&ma50>ma120){align='완전 정배열';alignDetail='모든 이평선이 상향 정렬된 강한 상승추세';}
+    else if(ma5<ma20&&ma20<ma50&&ma50<ma120){align='완전 역배열';alignDetail='모든 이평선이 하향 정렬된 강한 하락추세';}
+    else if(longUp&&shortDn){align='정배열 흐트러짐';alignDetail='장기 상승추세는 유지되나 단기선이 꺾여 조정 국면';}
+    else if(longDn&&shortUp){align='역배열 속 반등';alignDetail='장기 하락추세 속 단기 반등 시도';}
+    else if(longDn&&shortDn&&!ma20v50){align='역배열 전환 진행';alignDetail='단기 약세가 중기까지 확산되며 추세 전환 진행';}
+    else if(spread<0.01){align='밀집';alignDetail='이평선이 좁게 수렴해 방향성 모색(변동성 확대 임박 가능)';}
+    else {align='혼조';alignDetail='이평선 정렬이 엇갈려 뚜렷한 추세 부재';}
   }
-  // RSI 구간 (45~55 중립)
-  let rsiState='중립';
-  if(rsi!=null){if(rsi>=70)rsiState='과매수권';else if(rsi<=30)rsiState='과매도권';
-    else if(rsi>=55)rsiState='중립적 매수우위';else if(rsi<=45)rsiState='중립적 매도우위';else rsiState='중립';}
-  // 50일 이격도 구간 (지수 기준 관행값: 106↑ 과열 / 103~106 다소 과열 / 97~103 중립 / 94~97 다소 침체 / 94↓ 침체)
-  let dispState='중립';
+  // 골든/데드크로스 감지 (5일선이 20일선을 직전봉 대비 교차)
+  let cross=null;
+  if(ma5!=null&&ma20!=null&&ma5p!=null&&ma20p!=null){
+    if(ma5p<=ma20p&&ma5>ma20)cross='golden';      // 단기 골든크로스 발생
+    else if(ma5p>=ma20p&&ma5<ma20)cross='dead';    // 단기 데드크로스 발생
+  }
+
+  // ── ② RSI 세분화 (모멘텀 방향 포함) ──
+  let rsiState='중립',rsiZone='neu';
+  if(rsi!=null){
+    if(rsi>=70){rsiState='과매수권';rsiZone='warn';}
+    else if(rsi>=60){rsiState='강세 모멘텀';rsiZone='bull';}
+    else if(rsi>=55){rsiState='중립적 매수우위';rsiZone='bull';}
+    else if(rsi>45){rsiState='중립';rsiZone='neu';}
+    else if(rsi>40){rsiState='중립적 매도우위';rsiZone='bear';}
+    else if(rsi>30){rsiState='약세 모멘텀';rsiZone='bear';}
+    else {rsiState='과매도권';rsiZone='warn';}
+  }
+  const rsiSlope=(rsi!=null&&rsiP!=null)?(rsi-rsiP):null;
+  const rsiDir=rsiSlope==null?'':(rsiSlope>0.5?'상승':rsiSlope<-0.5?'하락':'횡보');
+
+  // ── ③ 50일 이격도 세분화 ──
+  let dispState='중립',dispZone='neu';
   if(disp!=null){
-    if(disp>=106)dispState='과열권';
-    else if(disp>=103)dispState='다소 과열';
-    else if(disp>97)dispState='중립';
-    else if(disp>94)dispState='다소 침체';
-    else dispState='침체권';
+    if(disp>=110){dispState='극단 과열';dispZone='warn';}
+    else if(disp>=106){dispState='과열권';dispZone='warn';}
+    else if(disp>=103){dispState='다소 과열';dispZone='bull';}
+    else if(disp>97){dispState='중립';dispZone='neu';}
+    else if(disp>94){dispState='다소 침체';dispZone='bear';}
+    else if(disp>90){dispState='침체권';dispZone='warn';}
+    else {dispState='극단 침체';dispZone='warn';}
   }
-  // 종합 점수 → 강세/중립/약세 (경계 근처는 0점 처리)
+
+  // ── ④ 종합 점수 (세분화) → 5단계 ──
   let score=0;
   if(ma20!=null)score+=px>=ma20?1:-1;
   if(ma50!=null)score+=px>=ma50?1:-1;
-  if(align==='정배열')score+=1;else if(align==='역배열')score-=1;
-  if(rsi!=null){if(rsi>=55&&rsi<70)score+=1;else if(rsi<=45&&rsi>30)score-=1;}
-  // 이격도: 다소 과열(상승추세 우위) +1 / 다소 침체 -1 / 과열·침체 극단은 되돌림 우려로 0
+  // 배열 가중
+  if(align==='완전 정배열')score+=2;
+  else if(align==='정배열 흐트러짐')score+=1;
+  else if(align==='역배열 속 반등')score-=1;
+  else if(align==='역배열 전환 진행')score-=2;
+  else if(align==='완전 역배열')score-=2;
+  // 크로스 가중
+  if(cross==='golden')score+=1;else if(cross==='dead')score-=1;
+  // RSI 가중 (과매수/과매도 극단은 0, 모멘텀 구간만 반영)
+  if(rsi!=null){
+    if(rsi>=60&&rsi<70)score+=1;
+    else if(rsi>=55&&rsi<60)score+=0.5;
+    else if(rsi>40&&rsi<=45)score-=0.5;
+    else if(rsi>30&&rsi<=40)score-=1;
+  }
+  // 이격도 가중 (극단은 되돌림 우려로 0)
   if(dispState==='다소 과열')score+=1;else if(dispState==='다소 침체')score-=1;
-  const overall=score>=2?'강세':score<=-2?'약세':'중립';
-  // 문장 조립
-  const pos20=ma20!=null?(px>=ma20?'20일선 위':'20일선 아래'):'20일선 비교 불가';
-  const pos50=ma50!=null?(px>=ma50?'50일선 위':'50일선 아래'):'50일선 비교 불가';
-  const dispTxt=disp!=null
-    ? `50일 이격도는 ${disp.toFixed(1)}로 ${dispState}`+
-      (dispState==='과열권'?' (평균 대비 과도하게 벌어져 단기 되돌림 가능성)'
-       :dispState==='침체권'?' (평균 대비 과도하게 눌려 단기 반등 가능성)'
-       :dispState==='중립'?' (평균선 부근)':'')+' 입니다.'
-    : '50일 이격도는 산출 불가입니다.';
-  const txt=`현재 종가는 ${pos20}, ${pos50}에 위치하며 이동평균선은 ${align} 상태입니다. `+
-    `RSI(14)는 ${rsi!=null?rsi.toFixed(0):'—'}로 ${rsiState} 구간이며, ${dispTxt} `+
-    `종합적으로 기술적 지표는 ${overall} 쪽에 가까운 상태로 해석됩니다.`;
-  return {txt,overall,align,rsi,rsiState,disp,dispState};
+  let overall,overallZone;
+  if(score>=4){overall='강한 매수우위';overallZone='bull';}
+  else if(score>=2){overall='매수우위';overallZone='bull';}
+  else if(score>-2){overall='중립';overallZone='neu';}
+  else if(score>-4){overall='매도우위';overallZone='bear';}
+  else {overall='강한 매도우위';overallZone='bear';}
+
+  // ── ⑤ 구분 서술형 요약 (추세 / 모멘텀 / 과열도 / 종합) ──
+  const crossTxt=cross==='golden'?' 최근 단기 골든크로스가 발생했습니다.':cross==='dead'?' 최근 단기 데드크로스가 발생했습니다.':'';
+  const trendTxt=`[추세] ${alignDetail}.${crossTxt}`;
+  const momTxt=`[모멘텀] RSI ${rsi!=null?rsi.toFixed(0):'—'}, ${rsiState}${rsiDir?` (${rsiDir} 흐름)`:''}.`;
+  let heatExtra='';
+  if(dispState.includes('과열'))heatExtra=' 평균 대비 이격이 커 단기 되돌림에 유의';
+  else if(dispState.includes('침체'))heatExtra=' 평균 대비 과도하게 눌려 기술적 반등 가능성';
+  const heatTxt=`[과열도] 50일 이격도 ${disp!=null?disp.toFixed(1):'—'}, ${dispState}.${heatExtra}.`;
+  // 신호 충돌 감지
+  const trendBull=(align.includes('정배열'));
+  const trendBear=(align.includes('역배열'));
+  const heatOver=(dispState.includes('과열')||rsiState==='과매수권');
+  const heatUnder=(dispState.includes('침체')||rsiState==='과매도권');
+  let conflict='';
+  if(trendBull&&heatOver)conflict=' 추세는 상승 우위지만 단기 과열 신호가 동반되어, 추격매수보다 눌림목 대응이 유효한 구간입니다.';
+  else if(trendBear&&heatUnder)conflict=' 추세는 하락 우위지만 단기 과매도 신호가 동반되어, 기술적 반등과 추세 지속이 엇갈리는 구간입니다.';
+  const sumTxt=`[종합] 기술적 지표는 '${overall}'로 해석됩니다.${conflict}`;
+
+  return {overall,overallZone,align,alignDetail,cross,rsi,rsiState,rsiZone,rsiDir,
+    disp,dispState,dispZone,score,
+    parts:{trend:trendTxt,mom:momTxt,heat:heatTxt,sum:sumTxt}};
 }
 
 const cv=$('#chart'),ctx=cv.getContext('2d');
@@ -597,19 +716,19 @@ function renderAnalysis(ohlcv){
   const box=$('#analysis');if(!box)return;
   const ta=techSummary(ohlcv);
   if(!ta){box.innerHTML='<span class="ta-txt" style="color:var(--faint)">기술적 요약: 데이터가 부족합니다.</span>';return;}
-  const oc=ta.overall==='강세'?'bull':ta.overall==='약세'?'bear':'neu';
-  const rc=ta.rsiState.includes('과매수')?'warn':ta.rsiState.includes('과매도')?'warn':ta.rsiState.includes('매수')?'bull':ta.rsiState.includes('매도')?'bear':'';
-  const ac=ta.align==='정배열'?'bull':ta.align==='역배열'?'bear':'';
-  const dc=(ta.dispState==='과열권'||ta.dispState==='침체권')?'warn':ta.dispState==='다소 과열'?'bull':ta.dispState==='다소 침체'?'bear':'';
+  const oc=ta.overallZone==='bull'?'bull':ta.overallZone==='bear'?'bear':'neu';
+  const ac=ta.align.includes('정배열')?'bull':ta.align.includes('역배열')?'bear':'';
+  const crossBadge=ta.cross==='golden'?'<span class="ta-badge bull">GC</span>':ta.cross==='dead'?'<span class="ta-badge bear">DC</span>':'';
   const dispVal=ta.disp!=null?ta.disp.toFixed(1):'—';
   box.innerHTML=
     `<div class="ta-overall ${oc}"><span class="ta-ov-lbl">종합의견</span><span class="ta-ov-val">${ta.overall}</span></div>`+
     `<div class="ta-blocks">`+
-      `<div class="ta-blk"><span class="ta-blk-lbl">이평선</span><span class="ta-badge ${ac}">${ta.align}</span></div>`+
-      `<div class="ta-blk"><span class="ta-blk-lbl">RSI</span><span class="ta-badge ${rc}">${ta.rsi!=null?ta.rsi.toFixed(0):'—'} · ${ta.rsiState}</span></div>`+
-      `<div class="ta-blk"><span class="ta-blk-lbl">이격도(50)</span><span class="ta-badge ${dc}">${dispVal} · ${ta.dispState}</span></div>`+
+      `<div class="ta-blk"><span class="ta-blk-lbl">이평선</span><span class="ta-badge ${ac}">${ta.align}</span>${crossBadge}</div>`+
+      `<div class="ta-blk"><span class="ta-blk-lbl">RSI</span><span class="ta-badge ${ta.rsiZone}">${ta.rsi!=null?ta.rsi.toFixed(0):'—'} · ${ta.rsiState}</span></div>`+
+      `<div class="ta-blk"><span class="ta-blk-lbl">이격도(50)</span><span class="ta-badge ${ta.dispZone}">${dispVal} · ${ta.dispState}</span></div>`+
     `</div>`+
-    `<div class="ta-txt">${ta.txt}<span class="dis">※ 일봉 기준 기술적 지표 자동 요약 · 투자 권유가 아닙니다.</span></div>`;
+    `<div class="ta-txt"><span class="ta-line">${ta.parts.trend}</span><span class="ta-line">${ta.parts.mom}</span><span class="ta-line">${ta.parts.heat}</span><span class="ta-line ta-sum">${ta.parts.sum}</span>`+
+    `<span class="dis">※ 일봉 기준 기술적 지표 자동 요약 · 투자 권유가 아닙니다.</span></div>`;
 }
 function drawLegend(i,bars,ma5,ma20,ma50,ma120,rsiV){
   const b=bars[i],prev=i>0?bars[i-1][4]:b[1],chg=(b[4]-prev)/prev*100;
