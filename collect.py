@@ -88,13 +88,21 @@ def collect_global():
 
 # ── KRX OpenAPI 공통 ───────────────────────────────────────────────────
 KRX_BASE = "http://data-dbg.krx.co.kr/svc/apis"
-def _krx(cat, api, basDd, key):
-    import requests
-    r = requests.get(f"{KRX_BASE}/{cat}/{api}", headers={"AUTH_KEY": key},
-                     params={"basDd": basDd}, timeout=30)
-    r.raise_for_status()
-    j = r.json()
-    return j.get("OutBlock_1") or next((v for v in j.values() if isinstance(v, list)), [])
+def _krx(cat, api, basDd, key, retries=3):
+    import requests, time as _t
+    last_err = None
+    for attempt in range(retries):
+        try:
+            r = requests.get(f"{KRX_BASE}/{cat}/{api}", headers={"AUTH_KEY": key},
+                             params={"basDd": basDd}, timeout=30)
+            r.raise_for_status()
+            j = r.json()
+            return j.get("OutBlock_1") or next((v for v in j.values() if isinstance(v, list)), [])
+        except Exception as e:
+            last_err = e
+            if attempt < retries - 1:
+                _t.sleep(2 * (attempt + 1))   # 2s, 4s 백오프
+    raise last_err
 
 def _f(x):
     try: return float(str(x).replace(",", "").strip())
@@ -261,6 +269,20 @@ def load_earnings():
     log("SKIP", f"실적: {path} 없음 → 데이터 없음"); return None, "없음"
 
 # ── main ───────────────────────────────────────────────────────────────
+def fetch_prev_snapshot():
+    """직전에 배포된 snapshot.json을 가져온다(이번 수집이 실패한 항목을 메우기 위함)."""
+    url = os.environ.get("PREV_SNAPSHOT_URL")
+    if not url:
+        return None
+    try:
+        import requests
+        r = requests.get(url, timeout=20)
+        r.raise_for_status()
+        log("OK", "직전 스냅샷 로드(폴백용)")
+        return r.json()
+    except Exception as e:
+        fail("직전 스냅샷 로드", e); return None
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--date")
@@ -275,6 +297,7 @@ def main():
         last, prev = recent_business_days(2)
     log("INFO", f"기준 거래일={last}, 전거래일={prev}, KRX키={'있음' if key else '없음'}")
 
+    prev_snap = fetch_prev_snapshot()
     sources = {}
     snap = {"meta": {"generated_at": datetime.now(KST).isoformat(timespec="seconds"),
                      "demo": False, "trade_date": last, "sources": sources}}
@@ -287,20 +310,34 @@ def main():
     snap["news"] = collect_news()
     snap["earnings"], src_earn = load_earnings()
 
+    # ── 폴백: 이번에 실패/빈 항목은 직전 스냅샷 값으로 메움 (화면이 텅 비지 않도록) ──
+    def empty(v): return v is None or (isinstance(v, list) and len(v) == 0)
+    carried = []
+    if prev_snap:
+        for k in ("movers", "sectors", "indices", "charts", "global", "news"):
+            if empty(snap.get(k)) and not empty(prev_snap.get(k)):
+                snap[k] = prev_snap[k]; carried.append(k)
+    if carried:
+        log("WARN", f"이번 수집 실패 → 직전값 유지: {', '.join(carried)}")
+
     def st(v, fb="수집 실패"):
         return "수집됨" if (v is not None and (not isinstance(v, list) or len(v) > 0)) else fb
+    def st2(k, fb="수집 실패"):
+        if k in carried: return "직전 캐시"
+        return st(snap.get(k), fb)
     sources.update({
-        "indices": st(snap.get("indices") and snap["indices"].get("kospi")),
+        "indices": "직전 캐시" if "indices" in carried else st(snap.get("indices") and snap["indices"].get("kospi")),
         "flows": "미제공",
-        "movers": st(snap.get("movers"), "수집 실패/키 확인"),
-        "news": st(snap.get("news")),
+        "movers": st2("movers", "수집 실패/키 확인"),
+        "news": st2("news"),
         "earnings": src_earn,
-        "charts": st(snap.get("charts")),
+        "charts": st2("charts"),
+        "sectors": st2("sectors"),
     })
 
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(snap, f, ensure_ascii=False, separators=(",", ":"))
-    log("DONE", f"{args.out} 생성 완료")
+    log("DONE", f"{args.out} 생성 완료" + (f" (직전값 유지: {', '.join(carried)})" if carried else ""))
 
 if __name__ == "__main__":
     main()
