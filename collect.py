@@ -4,7 +4,7 @@
 KR Premarket Terminal - 데이터 수집기
 지수/차트/미국시장: Yahoo(yfinance). 특징주/업종: KRX OpenAPI(키 필요).
 수급: KRX OpenAPI 미제공 → 데이터 없음. 뉴스: RSS. 실적: config/earnings.json(선택).
-환경변수 KRX_API_KEY 필요(특징주/업종용).
+메모리 현물가: TrendForce DRAM/NAND Spot. 환경변수 KRX_API_KEY 필요(특징주/업종용).
 """
 import os, sys, json, re, html, argparse
 from datetime import datetime, timedelta, timezone
@@ -276,6 +276,68 @@ def collect_news(per_side=8, max_age_hours=30):
     ok(f"뉴스 국내 {len(dom)} · 국제 {len(intl)}건 (최근 {max_age_hours}h, 중요도+최신)")
     return out
 
+# ── 메모리 현물가 (TrendForce DRAM/NAND Spot) ──────────────────────────
+# 대표 품목만(스크롤 없이 6개). 키=페이지 원본 품목명, 값=화면 표시 라벨.
+DRAM_ITEMS = {
+    "DDR5 16Gb (2Gx8) 4800/5600": "DDR5 16Gb 4800/5600",
+    "DDR4 16Gb (2Gx8) 3200":      "DDR4 16Gb 3200",
+    "DDR4 8Gb (1Gx8) 3200":       "DDR4 8Gb 3200",
+}
+NAND_ITEMS = {
+    "MLC 64Gb 8GBx8": "NAND MLC 64Gb",
+    "MLC 32Gb 4GBx8": "NAND MLC 32Gb",
+    "SLC 2Gb 256MBx8":"NAND SLC 2Gb",
+}
+def _mem_cells(row_html):
+    cells = re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', row_html, re.S | re.I)
+    out = []
+    for c in cells:
+        c = re.sub(r'<[^>]+>', ' ', c); c = html.unescape(c)
+        out.append(re.sub(r'\s+', ' ', c).strip())
+    return out
+def _parse_spot(html_text):
+    """첫 번째 표를 파싱해 {품목명:{avg,chg}} 와 갱신일자를 반환."""
+    m = re.search(r'<table[^>]*>(.*?)</table>', html_text, re.S | re.I)
+    if not m: return {}, None
+    by = {}
+    for r in re.findall(r'<tr[^>]*>(.*?)</tr>', m.group(1), re.S | re.I):
+        c = _mem_cells(r)
+        if len(c) < 7 or not c[0] or c[0].lower() == 'item': continue
+        ma = re.search(r'(-?\d+(?:\.\d+)?)', c[5].replace(',', ''))
+        mc = re.search(r'(-?\d+(?:\.\d+)?)', c[6].replace(',', ''))
+        by[c[0]] = {"avg": float(ma.group(1)) if ma else None,
+                    "chg": float(mc.group(1)) if mc else None}
+    upd = re.search(r'Last Update\s*(\d{4}-\d{2}-\d{2}\s*[\d:]+)', html_text)
+    return by, (upd.group(1).strip() if upd else None)
+def _fetch_spot(url, items):
+    import requests
+    r = requests.get(url, headers={"User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"}, timeout=30)
+    r.raise_for_status()
+    by, upd = _parse_spot(r.text)
+    rows = []
+    for raw, label in items.items():
+        d = by.get(raw)
+        if d and d["avg"] is not None:
+            rows.append({"name": label, "price": d["avg"], "change_pct": d["chg"]})
+    return rows, upd
+def collect_memory():
+    out = {"dram": [], "nand": [], "dram_updated": None, "nand_updated": None}
+    try:
+        out["dram"], out["dram_updated"] = _fetch_spot("https://www.trendforce.com/price/dram/dram_spot", DRAM_ITEMS)
+        ok(f"메모리 DRAM ({len(out['dram'])}품목)")
+    except Exception as e:
+        fail("메모리 DRAM", e)
+    try:
+        out["nand"], out["nand_updated"] = _fetch_spot("https://www.trendforce.com/price/flash/flash_spot", NAND_ITEMS)
+        ok(f"메모리 NAND ({len(out['nand'])}품목)")
+    except Exception as e:
+        fail("메모리 NAND", e)
+    if not out["dram"] and not out["nand"]:
+        return None
+    return out
+
 # ── 실적 (수동, 선택) ──────────────────────────────────────────────────
 def load_earnings():
     path = os.path.join("config", "earnings.json")
@@ -326,13 +388,14 @@ def main():
     snap["sectors"] = collect_sectors(last, key)
     snap["flows"] = None  # KRX OpenAPI 미제공
     snap["news"] = collect_news()
+    snap["memory"] = collect_memory()
     snap["earnings"], src_earn = load_earnings()
 
     # ── 폴백: 이번에 실패/빈 항목은 직전 스냅샷 값으로 메움 (화면이 텅 비지 않도록) ──
     def empty(v): return v is None or (isinstance(v, list) and len(v) == 0)
     carried = []
     if prev_snap:
-        for k in ("movers", "sectors", "indices", "charts", "global", "news"):
+        for k in ("movers", "sectors", "indices", "charts", "global", "news", "memory"):
             if empty(snap.get(k)) and not empty(prev_snap.get(k)):
                 snap[k] = prev_snap[k]; carried.append(k)
     if carried:
@@ -351,6 +414,7 @@ def main():
         "earnings": src_earn,
         "charts": st2("charts"),
         "sectors": st2("sectors"),
+        "memory": st2("memory"),
     })
 
     with open(args.out, "w", encoding="utf-8") as f:
