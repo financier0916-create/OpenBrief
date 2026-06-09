@@ -268,13 +268,17 @@ function genOHLC(seed,start,years,base,drift,vol){
 }
 const T0=Date.UTC(2016,0,1);
 const SAMPLE={
-  meta:{generated_at:null,demo:true,sources:{indices:"sample",movers:"sample",news:"sample",charts:"sample"}},
+  meta:{generated_at:null,demo:true,sources:{indices:"sample",flows:"sample",movers:"sample",news:"sample",earnings:"sample",charts:"sample"}},
   indices:{kospi:{name:"코스피",last:2712.4,change_pct:0.68},kosdaq:{name:"코스닥",last:842.1,change_pct:-0.40}},
   global:{sp500:{name:"S&P500",last:5901.2,change_pct:0.52},nasdaq:{name:"나스닥",last:19210.3,change_pct:0.81},dow:{name:"다우",last:42850.1,change_pct:0.33},sox:{name:"SOX 반도체",last:5120.4,change_pct:1.42},vix:{name:"VIX 공포지수",last:14.2,change_pct:-5.1},us10y:{name:"미10년물",last:4.38,change_pct:-0.7,unit:"%"},dxy:{name:"달러인덱스",last:104.2,change_pct:0.15},wti:{name:"WTI",last:68.4,change_pct:-1.1},gold:{name:"금",last:2412.5,change_pct:0.42},usdkrw:{name:"원/달러",last:1372.5,change_pct:0.22},ewy:{name:"EWY 한국ETF",last:62.4,change_pct:0.74}},
-  sectors:[{name:"전기전자",change_pct:1.62},{name:"화학",change_pct:-0.94},{name:"금융",change_pct:0.31},{name:"건설",change_pct:0.72},{name:"기계·장비",change_pct:-0.18},{name:"운송장비·부품",change_pct:0.44},{name:"의료·정밀기기",change_pct:-1.21},{name:"섬유·의류",change_pct:0.55},{name:"음식료·담배",change_pct:1.15}],
+  flows:{kospi:{foreign:-2840,institution:1120,individual:1810},kosdaq:{foreign:340,institution:-560,individual:240}},
+  sectors:[{name:"전기전자",change_pct:1.62},{name:"화학",change_pct:-0.94},{name:"의약품",change_pct:0.31},{name:"운수장비",change_pct:0.72},{name:"서비스업",change_pct:-0.18},{name:"금융업",change_pct:0.44},{name:"철강금속",change_pct:-1.21},{name:"건설업",change_pct:0.55},{name:"기계",change_pct:1.15}],
   movers:{
     gainers:[{ticker:"096770",name:"SK이노베이션",last:118500,change_pct:14.8,volume:5200000},{ticker:"247540",name:"에코프로비엠",last:182000,change_pct:11.2,volume:3100000},{ticker:"086520",name:"에코프로",last:92400,change_pct:9.7,volume:4800000},{ticker:"042700",name:"한미반도체",last:138000,change_pct:8.3,volume:2600000},{ticker:"012450",name:"한화에어로스페이스",last:286000,change_pct:7.1,volume:980000}],
     losers:[{ticker:"068270",name:"셀트리온",last:178000,change_pct:-8.9,volume:2200000},{ticker:"207940",name:"삼성바이오로직스",last:742000,change_pct:-6.2,volume:240000},{ticker:"035720",name:"카카오",last:38900,change_pct:-5.4,volume:6800000},{ticker:"259960",name:"크래프톤",last:298000,change_pct:-4.8,volume:410000},{ticker:"036570",name:"엔씨소프트",last:184500,change_pct:-4.1,volume:520000}],
+    volume:[{ticker:"035720",name:"카카오",last:38900,change_pct:-5.4,vol_ratio:9.2},{ticker:"096770",name:"SK이노베이션",last:118500,change_pct:14.8,vol_ratio:7.8},{ticker:"247540",name:"에코프로비엠",last:182000,change_pct:11.2,vol_ratio:5.1},{ticker:"000660",name:"SK하이닉스",last:198500,change_pct:2.8,vol_ratio:3.4},{ticker:"005930",name:"삼성전자",last:74200,change_pct:1.2,vol_ratio:2.9}],
+    mcap_kospi:[{ticker:"005930",name:"삼성전자",last:74200,change_pct:1.2,mktcap:443000000000000},{ticker:"000660",name:"SK하이닉스",last:198500,change_pct:2.8,mktcap:144000000000000},{ticker:"373220",name:"LG에너지솔루션",last:382000,change_pct:-1.1,mktcap:89000000000000},{ticker:"207940",name:"삼성바이오로직스",last:742000,change_pct:-6.2,mktcap:52000000000000},{ticker:"005380",name:"현대차",last:241000,change_pct:0.4,mktcap:50000000000000}],
+    mcap_kosdaq:[{ticker:"247540",name:"에코프로비엠",last:182000,change_pct:11.2,mktcap:17800000000000},{ticker:"086520",name:"에코프로",last:92400,change_pct:9.7,mktcap:12300000000000},{ticker:"196170",name:"알테오젠",last:312000,change_pct:1.5,mktcap:11200000000000},{ticker:"328130",name:"루닛",last:48500,change_pct:-2.1,mktcap:980000000000},{ticker:"068760",name:"셀트리온제약",last:78900,change_pct:0.8,mktcap:870000000000}],
     mcap_all:[{ticker:"005930",name:"삼성전자",change_pct:1.2,mktcap:443000000000000},{ticker:"000660",name:"SK하이닉스",change_pct:2.8,mktcap:144000000000000},{ticker:"373220",name:"LG에너지솔루션",change_pct:-1.1,mktcap:89000000000000},{ticker:"207940",name:"삼성바이오로직스",change_pct:-6.2,mktcap:52000000000000},{ticker:"005380",name:"현대차",change_pct:0.4,mktcap:50000000000000},{ticker:"000270",name:"기아",change_pct:0.9,mktcap:38000000000000},{ticker:"068270",name:"셀트리온",change_pct:-8.9,mktcap:36000000000000},{ticker:"105560",name:"KB금융",change_pct:1.7,mktcap:34000000000000},{ticker:"005935",name:"삼성전자우",change_pct:1.0,mktcap:33000000000000},{ticker:"012450",name:"한화에어로스페이스",change_pct:7.1,mktcap:31000000000000}]
   },
   news:[{title:"코스피 외국인 순매수 전환… 반도체 대형주 강세",summary:"",source:"샘플경제",url:"#",published_at:"06-03 08:10",scope:"domestic"},{title:"원/달러 1370원대 등락, 수출주 영향 주목",summary:"",source:"샘플경제",url:"#",published_at:"06-03 07:40",scope:"domestic"},{title:"삼성전자·SK하이닉스 HBM 수요 전망에 투자심리 개선",summary:"",source:"샘플경제",url:"#",published_at:"06-03 06:55",scope:"domestic"},{title:"오늘 쿼드러플위칭… 프로그램 매매 변동성 유의",summary:"",source:"샘플데일리",url:"#",published_at:"06-02 18:20",scope:"domestic"},{title:"美 SOX 반도체지수 1.4%↑… 엔비디아 실적 호조",summary:"",source:"샘플경제",url:"#",published_at:"06-03 06:40",scope:"intl"},{title:"연준 인사 발언에 나스닥 강세, 금리 인하 기대",summary:"",source:"샘플경제",url:"#",published_at:"06-03 05:20",scope:"intl"},{title:"국제유가 하락, WTI 배럴당 68달러대",summary:"",source:"샘플경제",url:"#",published_at:"06-03 04:50",scope:"intl"}],
@@ -545,19 +549,21 @@ function drawChart(){
   const hi=HOVER!=null&&HOVER<n?HOVER:n-1;
   drawLegend(hi,bars,ma5,ma20,ma60,ma120,rsiV);
   if(HOVER!=null&&HOVER>=0&&HOVER<n){const x=xC(HOVER),y=yP(bars[HOVER][4]);
-    ctx.strokeStyle='rgba(200,210,220,.3)';ctx.setLineDash([3,3]);
+    ctx.strokeStyle='rgba(200,210,220,.35)';ctx.setLineDash([3,3]);
     ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);ctx.stroke();
     ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cw,y);ctx.stroke();
     ctx.setLineDash([]);
-    const pv=Math.round(bars[HOVER][4]).toLocaleString();ctx.font='600 10px "IBM Plex Mono",monospace';
+    ctx.textBaseline='middle';
+    ctx.font='600 11px "IBM Plex Mono",monospace';
+    const pv=Math.round(bars[HOVER][4]).toLocaleString();
     const pvw=ctx.measureText(pv).width+12;
-    ctx.fillStyle='#e6edf3';
-    (ctx.roundRect?ctx.roundRect(padL+cw+3,y-8,pvw,16,3):ctx.rect(padL+cw+3,y-8,pvw,16));ctx.fill();
-    ctx.fillStyle='#0b0f14';ctx.fillText(pv,padL+cw+9,y+3.5);
+    ctx.fillStyle='#f0f4f8';ctx.fillRect(padL+cw+3,y-8.5,pvw,17);
+    ctx.fillStyle='#0b0f14';ctx.textAlign='left';ctx.fillText(pv,padL+cw+9,y+0.5);
     const dd=new Date(bars[HOVER][0]);const dl=`${String(dd.getUTCFullYear()).slice(2)}.${String(dd.getUTCMonth()+1).padStart(2,'0')}.${String(dd.getUTCDate()).padStart(2,'0')}`;
     const dlw=ctx.measureText(dl).width+12;let dx=Math.min(Math.max(x-dlw/2,padL),padL+cw-dlw);
-    ctx.fillStyle='#e6edf3';(ctx.roundRect?ctx.roundRect(dx,padT+plotH+2,dlw,15,3):ctx.rect(dx,padT+plotH+2,dlw,15));ctx.fill();
-    ctx.fillStyle='#0b0f14';ctx.fillText(dl,dx+6,padT+plotH+12.5);
+    ctx.fillStyle='#f0f4f8';ctx.fillRect(dx,padT+plotH+2,dlw,16);
+    ctx.fillStyle='#0b0f14';ctx.fillText(dl,dx+6,padT+plotH+10.5);
+    ctx.textBaseline='alphabetic';
     ctx.fillStyle='#e6edf3';ctx.beginPath();ctx.arc(x,y,3.5,0,7);ctx.fill();}
   renderAnalysis(c.ohlcv);
 }
