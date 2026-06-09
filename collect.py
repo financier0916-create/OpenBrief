@@ -191,16 +191,25 @@ NEWS_KEYWORDS = {
 }
 NEWS_NOISE = ["인사", "부고", "동정", "포토", "날씨", "운세", "사설", "칼럼", "기고", "당첨", "이벤트", "행사", "예고", "방송"]
 
-# 국제(해외) 분류 키워드 — 제목에 있으면 '국제'로 분류
-INTL_KEYWORDS = ["미국", "美", "뉴욕", "월가", "월스트리트", "연준", "Fed", "FOMC", "파월",
-    "나스닥", "S&P", "다우", "필라델피아", "엔비디아", "테슬라", "애플", "마이크로소프트", "MS",
+# 국내 신호 키워드 — 제목에 있으면 '국내' 가중치
+DOMESTIC_KEYWORDS = ["코스피", "코스닥", "국내증시", "원/달러", "원달러", "한국은행", "한은",
+    "삼성전자", "SK하이닉스", "현대차", "기아", "LG", "네이버", "카카오", "셀트리온", "포스코",
+    "외국인", "기관", "개인", "공매도", "동시만기", "쿼드러플", "사이드카", "서킷브레이커",
+    "코스피200", "유가증권", "거래소", "금융위", "금감원", "상한가", "하한가", "분할매수"]
+# 국제 신호 키워드 — 제목에 있으면 '국제' 가중치
+INTL_KEYWORDS = ["미국", "美", "뉴욕증시", "월가", "월스트리트", "연준", "Fed", "FOMC", "파월",
+    "나스닥", "S&P", "다우", "필라델피아", "반도체지수", "엔비디아", "테슬라", "애플", "마이크로소프트",
     "중국", "中", "일본", "日", "유럽", "EU", "독일", "영국", "ECB", "BOJ", "위안", "엔화",
-    "관세", "트럼프", "바이든", "OPEC", "국제유가", "글로벌", "해외"]
+    "트럼프", "바이든", "OPEC", "국제유가", "글로벌증시", "뉴욕"]
 
 def _clean(t): return html.unescape(re.sub(r"<[^>]+>", "", t or "")).strip()
 
-def _is_intl(title):
-    return any(k in title for k in INTL_KEYWORDS)
+def _scope(title):
+    """국내/국제 신호 점수를 비교해 분류. 동점·애매하면 국내(주 독자가 국내 투자자)."""
+    t = title or ""
+    dom = sum(1 for k in DOMESTIC_KEYWORDS if k in t)
+    intl = sum(1 for k in INTL_KEYWORDS if k in t)
+    return "intl" if intl > dom else "domestic"
 
 def _news_score(title, summary):
     text = (title or "") + " " + (summary or "")
@@ -212,6 +221,14 @@ def _news_score(title, summary):
         if kw in title: score -= 6
     if "속보" in title or "[속보]" in title: score += 2
     return score
+
+def _recency_bonus(age_h):
+    """최신 가산점 (B안: 중요도 + 최신성). 자고 일어나 보는 장전 브리핑 특성 반영."""
+    if age_h <= 6:  return 6
+    if age_h <= 12: return 4
+    if age_h <= 18: return 2
+    if age_h <= 24: return 1
+    return 0
 
 def collect_news(per_side=8, max_age_hours=30):
     import feedparser, time as _time
@@ -241,21 +258,22 @@ def collect_news(per_side=8, max_age_hours=30):
                 sc = _news_score(title, summary)
                 if sc < 0: continue                      # 노이즈(인사/포토 등) 제외
                 if age_h > max_age_hours: continue        # 너무 오래된 기사 제외
+                rank = sc + _recency_bonus(age_h)         # B안: 중요도 + 최신 가산
                 items.append({"title": title, "summary": summary[:120], "source": src,
                               "url": e.get("link"), "published_at": pub,
-                              "scope": "intl" if _is_intl(title) else "domestic",
-                              "_epoch": epoch, "_score": sc})
+                              "scope": _scope(title),
+                              "_rank": rank, "_epoch": epoch})
         except Exception as ex:
             fail(f"뉴스 {src}", ex)
     if not items: return None
     def top_of(scope):
         sub = [x for x in items if x["scope"] == scope]
-        sub.sort(key=lambda x: x["_epoch"], reverse=True)   # 최신순 우선
+        sub.sort(key=lambda x: (x["_rank"], x["_epoch"]), reverse=True)  # 중요+최신, 동점이면 더 최신
         return sub[:per_side]
     dom, intl = top_of("domestic"), top_of("intl")
     out = dom + intl
-    for it in out: it.pop("_epoch", None); it.pop("_score", None)
-    ok(f"뉴스 국내 {len(dom)} · 국제 {len(intl)}건 (최근 {max_age_hours}h)")
+    for it in out: it.pop("_rank", None); it.pop("_epoch", None)
+    ok(f"뉴스 국내 {len(dom)} · 국제 {len(intl)}건 (최근 {max_age_hours}h, 중요도+최신)")
     return out
 
 # ── 실적 (수동, 선택) ──────────────────────────────────────────────────
