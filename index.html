@@ -340,6 +340,7 @@ function render(){
   const ga=DATA.meta&&DATA.meta.generated_at?DATA.meta.generated_at:null;
   if(ga){
     asofEl.textContent=ga.replace('T',' ').slice(0,16);
+    // 오늘(KST) 날짜와 비교
     const today=new Date(Date.now()+9*3600*1000).toISOString().slice(0,10);
     const gd=ga.slice(0,10);
     const wrap=asofEl.closest('.asof');
@@ -394,6 +395,7 @@ function renderTicker(){
   el.parentElement.style.display='';
   const item=(r,i)=>`<span class="ti"><span class="ti-rk">${i+1}</span><span class="ti-nm">${r.name}</span><span class="ti-cap">${wonCap(r.mktcap)}</span><span class="ti-chg ${cls(r.change_pct)}">${has(r.change_pct)?(r.change_pct>0?'+':'')+r.change_pct.toFixed(2)+'%':''}</span></span>`;
   const seq=rows.map(item).join('<span class="ti-sep">·</span>');
+  // 끊김 없는 무한 루프를 위해 동일 시퀀스 2벌
   el.innerHTML=`<div class="ti-track">${seq}<span class="ti-sep">·</span>${seq}<span class="ti-sep">·</span></div>`;
 }
 
@@ -407,6 +409,12 @@ function renderNews(){
   $('#newsIntl').innerHTML=has(intl)?intl.map(li).join(''):ND;
 }
 
+function widgetSlot(sel,url,ph){
+  const el=$(sel);if(!el)return;
+  el.innerHTML=(url&&url.trim())
+    ? `<div class="widget-ph">위젯 로딩 중…</div><iframe src="${url}" loading="lazy" referrerpolicy="origin"></iframe>`
+    : `<div class="widget-ph">${ph}</div>`;
+}
 function renderMemory(){
   const el=$('#memory');if(!el)return;
   const m=DATA.memory;
@@ -516,6 +524,7 @@ function techSummary(ohlcv){
     const longUp=ma50>ma120, longDn=ma50<ma120;
     const shortUp=ma5>ma20, shortDn=ma5<ma20;
     const ma20v50=ma20>ma50;
+    // 이평선 밀집도(최대-최소)/종가 — 1% 미만이면 밀집
     const arr=[ma5,ma20,ma50,ma120],spread=(Math.max(...arr)-Math.min(...arr))/px;
     if(ma5>ma20&&ma20>ma50&&ma50>ma120){align='완전 정배열';alignDetail='모든 이평선이 상향 정렬된 강한 상승추세';}
     else if(ma5<ma20&&ma20<ma50&&ma50<ma120){align='완전 역배열';alignDetail='모든 이평선이 하향 정렬된 강한 하락추세';}
@@ -654,6 +663,7 @@ function drawChart(){
   cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
   const c=(DATA.charts||{})[state.sym];
   if(!c||!has(c.ohlcv)){GEO=null;ctx.fillStyle='#3a4654';ctx.font='13px monospace';ctx.fillText('차트 데이터 없음',W/2-50,H/2);$('#legend').innerHTML='';const hh=$('#chartHero');if(hh)hh.innerHTML='';const ab=$('#analysis');if(ab)ab.innerHTML='';return;}
+  // 전체(리샘플) 시리즈에서 지표 계산 → 표시 구간만 잘라 사용 (MA120/RSI가 짧은 기간에도 유효)
   const full=resample(c.ohlcv,state.interval);
   const fc2=full.map(b=>b[4]);
   const maF={5:sma(fc2,5),20:sma(fc2,20),50:sma(fc2,50),120:sma(fc2,120)};
@@ -684,6 +694,7 @@ function drawChart(){
   for(let g=0;g<=4;g++){const v=pmin+(pmax-pmin)*g/4,y=yP(v);ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cw,y);ctx.stroke();ctx.fillText(Math.round(v).toLocaleString(),padL+cw+5,y+3);}
   const dir=closes[n-1]>=closes[0],col=dir?'#ff4d56':'#4d8dff',rgb=dir?'255,77,86':'77,141,255';
   const line=(arr,c2,w,dash)=>{ctx.beginPath();let st=false;ctx.setLineDash(dash||[]);for(let i=0;i<n;i++){if(!has(arr[i])){st=false;continue;}const x=xC(i),y=yP(arr[i]);if(!st){ctx.moveTo(x,y);st=true}else ctx.lineTo(x,y);}ctx.strokeStyle=c2;ctx.lineWidth=w;ctx.stroke();ctx.setLineDash([]);};
+  // 가격 (라인/캔들)
   if(state.chartType==='area'){
     const g=ctx.createLinearGradient(0,padT,0,padT+plotH);
     g.addColorStop(0,`rgba(${rgb},.38)`);g.addColorStop(.55,`rgba(${rgb},.10)`);g.addColorStop(1,`rgba(${rgb},0)`);
@@ -695,15 +706,19 @@ function drawChart(){
   }else{
     bars.forEach((b,i)=>{const x=xC(i),up=b[4]>=b[1],cc=up?'#ff4d56':'#4d8dff';ctx.strokeStyle=cc;ctx.fillStyle=cc;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,yP(b[2]));ctx.lineTo(x,yP(b[3]));ctx.stroke();const yo=yP(b[1]),yc=yP(b[4]);ctx.fillRect(x-body/2,Math.min(yo,yc),body,Math.max(1,Math.abs(yc-yo)));});
   }
+  // 이동평균선 4개
   if(showMA){line(ma5,'#54c8e8',1.1);line(ma20,'#d8a24a',1.3);line(ma50,'#9b6dd8',1.3);line(ma120,'#e0607a',1.1);}
+  // 끝점 글로우 + 가격 알약
   const ex=xC(n-1),ey=yP(closes[n-1]);
   ctx.save();ctx.shadowColor=col;ctx.shadowBlur=10;ctx.fillStyle=col;ctx.beginPath();ctx.arc(ex,ey,3.6,0,7);ctx.fill();ctx.restore();
   const pill=Math.round(closes[n-1]).toLocaleString();ctx.font='10px "IBM Plex Mono",monospace';
   const pw=ctx.measureText(pill).width+12;ctx.fillStyle=col;ctx.beginPath();
   (ctx.roundRect?ctx.roundRect(padL+cw+3,ey-9,pw,18,4):ctx.rect(padL+cw+3,ey-9,pw,18));ctx.fill();
   ctx.fillStyle='#0b0f14';ctx.fillText(pill,padL+cw+9,ey+3.5);
+  // 날짜 라벨
   ctx.fillStyle='#566472';ctx.font='10px "IBM Plex Mono",monospace';const step=Math.ceil(n/7);
   for(let i=0;i<n;i+=step){const d=new Date(bars[i][0]);const lbl=state.period<=6?`${d.getUTCMonth()+1}/${d.getUTCDate()}`:`${String(d.getUTCFullYear()).slice(2)}.${String(d.getUTCMonth()+1).padStart(2,'0')}`;ctx.fillText(lbl,xC(i)-12,H-6);}
+  // RSI 서브패널
   if(showRSI){
     const ry0=padT+plotH+gap, ryH=rsiH;
     const yR=v=>ry0+ryH-(v/100)*ryH;
@@ -717,20 +732,23 @@ function drawChart(){
   drawLegend(hi,bars,ma5,ma20,ma50,ma120,rsiV);
   if(HOVER!=null&&HOVER>=0&&HOVER<n){const x=xC(HOVER),y=yP(bars[HOVER][4]);
     ctx.strokeStyle='rgba(200,210,220,.35)';ctx.setLineDash([3,3]);
-    ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cw,y);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);ctx.stroke();           // 세로선
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cw,y);ctx.stroke();              // 가로선
     ctx.setLineDash([]);
     ctx.textBaseline='middle';
+    // 우측 가격 라벨 — fillRect로 경로 간섭 제거
     ctx.font='600 11px "IBM Plex Mono",monospace';
     const pv=Math.round(bars[HOVER][4]).toLocaleString();
     const pvw=ctx.measureText(pv).width+12;
     ctx.fillStyle='#f0f4f8';ctx.fillRect(padL+cw+3,y-8.5,pvw,17);
     ctx.fillStyle='#0b0f14';ctx.textAlign='left';ctx.fillText(pv,padL+cw+9,y+0.5);
+    // 하단 날짜 라벨
     const dd=new Date(bars[HOVER][0]);const dl=`${String(dd.getUTCFullYear()).slice(2)}.${String(dd.getUTCMonth()+1).padStart(2,'0')}.${String(dd.getUTCDate()).padStart(2,'0')}`;
     const dlw=ctx.measureText(dl).width+12;let dx=Math.min(Math.max(x-dlw/2,padL),padL+cw-dlw);
     ctx.fillStyle='#f0f4f8';ctx.fillRect(dx,padT+plotH+2,dlw,16);
     ctx.fillStyle='#0b0f14';ctx.fillText(dl,dx+6,padT+plotH+10.5);
     ctx.textBaseline='alphabetic';
+    // 교차점
     ctx.fillStyle='#e6edf3';ctx.beginPath();ctx.arc(x,y,3.5,0,7);ctx.fill();}
   renderAnalysis(c.ohlcv);
 }
@@ -761,7 +779,14 @@ function drawLegend(i,bars,ma5,ma20,ma50,ma120,rsiV){
   if(state.ind.rsi&&rsiV)html+=`<span style="color:#d8a24a">RSI ${has(rsiV[i])?rsiV[i].toFixed(0):'—'}</span>`;
   $('#legend').innerHTML=html;
   const hero=$('#chartHero');const nm=((DATA.charts||{})[state.sym]||{}).name||state.sym||'';
-  if(hero)hero.innerHTML=`<div class="nm">${nm}</div><div class="px ${cls(chg)}">${fc(b[4])}</div><div class="chg ${cls(chg)}">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(2)}%</div>`;
+  // B-1: 비호버(기본) 상태의 헤드라인 종가는 KRX 공식값 사용 (차트선·끝점은 야후 유지)
+  let heroPx=b[4], heroChg=chg;
+  if(HOVER==null){
+    const ik=state.sym==='코스피'?'kospi':state.sym==='코스닥'?'kosdaq':null;
+    const off=ik&&DATA.indices?DATA.indices[ik]:null;
+    if(off&&off.official&&has(off.last)){heroPx=off.last;if(has(off.change_pct))heroChg=off.change_pct;}
+  }
+  if(hero)hero.innerHTML=`<div class="nm">${nm}</div><div class="px ${cls(heroChg)}">${fc(heroPx)}</div><div class="chg ${cls(heroChg)}">${heroChg>=0?'▲':'▼'} ${Math.abs(heroChg).toFixed(2)}%</div>`;
 }
 cv.addEventListener('mousemove',e=>{if(!GEO)return;const r=cv.getBoundingClientRect();const mx=e.clientX-r.left;let i=Math.round((mx-GEO.padL-GEO.bw/2)/GEO.bw);i=Math.max(0,Math.min(GEO.n-1,i));if(i!==HOVER){HOVER=i;drawChart();}});
 cv.addEventListener('mouseleave',()=>{if(HOVER!=null){HOVER=null;drawChart();}});
