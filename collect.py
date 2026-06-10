@@ -4,7 +4,7 @@
 KR Premarket Terminal - 데이터 수집기
 지수/차트/미국시장: Yahoo(yfinance). 특징주/업종: KRX OpenAPI(키 필요).
 수급: KRX OpenAPI 미제공 → 데이터 없음. 뉴스: RSS. 실적: config/earnings.json(선택).
-메모리 현물가: TrendForce DRAM/NAND Spot. 환경변수 KRX_API_KEY 필요(특징주/업종용).
+환경변수 KRX_API_KEY 필요(특징주/업종용).
 """
 import os, sys, json, re, html, argparse
 from datetime import datetime, timedelta, timezone
@@ -172,6 +172,28 @@ def collect_sectors(last_day, key):
         ok("업종 히트맵"); return out
     except Exception as e:
         fail("업종", e); return None
+
+# ── 지수 공식 종가 (KRX OpenAPI) — B-1: 표시 종가만 KRX 공식값으로 ──────
+# 차트(ohlcv)는 야후 유지, 헤드라인 종가/등락률만 KRX 공식값으로 덮어씀.
+def collect_index_official(last_day, key):
+    if not key:
+        return None
+    out = {}
+    for kname, api, idx_nm in (("kospi", "kospi_dd_trd", "코스피"),
+                               ("kosdaq", "kosdaq_dd_trd", "코스닥")):
+        try:
+            rows = _krx("idx", api, last_day, key)
+            row = next((r for r in rows if (r.get("IDX_NM") or "").strip() == idx_nm), None)
+            if not row:
+                continue
+            clo = _f(row.get("CLSPRC_IDX")); fr = _f(row.get("FLUC_RT"))
+            if clo is not None:
+                out[kname] = {"last": round(clo, 2),
+                              "change_pct": round(fr, 2) if fr is not None else None}
+                ok(f"공식지수 {idx_nm} {clo}")
+        except Exception as e:
+            fail(f"공식지수 {idx_nm}", e)
+    return out or None
 
 # ── 뉴스 (RSS) ─────────────────────────────────────────────────────────
 DEFAULT_FEEDS = [
@@ -383,6 +405,18 @@ def main():
                      "demo": False, "trade_date": last, "sources": sources}}
 
     snap["indices"], snap["charts"] = collect_indices_and_charts()
+    # B-1: 헤드라인 종가/등락률을 KRX 공식값으로 보정 (차트 ohlcv는 야후 유지)
+    official = collect_index_official(last, key)
+    if official and snap.get("indices"):
+        names={"kospi":"코스피","kosdaq":"코스닥"}
+        for k, v in official.items():
+            if snap["indices"].get(k):
+                snap["indices"][k]["last"]=v["last"]
+                snap["indices"][k]["change_pct"]=v["change_pct"]
+                snap["indices"][k]["official"]=True
+            else:
+                snap["indices"][k]={"name":names[k],"last":v["last"],
+                                    "change_pct":v["change_pct"],"official":True}
     snap["global"] = collect_global()
     snap["movers"] = collect_movers(last, prev, key)
     snap["sectors"] = collect_sectors(last, key)
