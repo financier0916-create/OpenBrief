@@ -1,13 +1,17 @@
 name: Daily Premarket Snapshot
 
-# 매일 07:40·08:10 KST(=UTC 22:40·23:10 전날) 두 번 시도.
-# GitHub 예약 실행은 가끔 누락되므로 백업 시각을 둠. (둘 다 돌아도 결과 동일 — 덮어쓰기)
+# 매일 06:30·07:10·07:40·08:10·08:40 KST 5회 시도 (UTC 전날 21:30·22:10·22:40·23:10·23:40).
+# GitHub 예약 실행은 자주 누락되므로 여러 번 시도. (여러 번 돌아도 결과 동일 — 덮어쓰기)
 on:
   schedule:
+    - cron: '30 21 * * *'
+    - cron: '10 22 * * *'
     - cron: '40 22 * * *'
     - cron: '10 23 * * *'
+    - cron: '40 23 * * *'
   workflow_dispatch:
 
+# 액션을 Node 24에서 실행 (Node 20 지원 종료 대비). 이 한 줄로 deprecation 경고 해소.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -39,7 +43,7 @@ jobs:
         run: python collect.py --out snapshot.json
         env:
           KRX_API_KEY: ${{ secrets.KRX_API_KEY }}
-          PREV_SNAPSHOT_URL: https://financier0916-create.github.io/KRterminal/snapshot.json
+          PREV_SNAPSHOT_URL: https://financier0916-create.github.io/OpenBrief/snapshot.json
       - name: Assemble site
         run: |
           mkdir -p _site
