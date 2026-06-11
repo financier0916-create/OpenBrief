@@ -48,7 +48,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:12
 .modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(4,7,10,.78);backdrop-filter:blur(3px);
   display:none;align-items:center;justify-content:center;padding:4vh 16px}
 .modal-overlay.open{display:flex}
-.modal{background:var(--panel);border:1px solid var(--border2);border-radius:10px;width:min(860px,96vw);max-height:92vh;
+.modal{background:var(--panel);border:1px solid var(--border2);border-radius:10px;width:min(960px,96vw);max-height:92vh;
   display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden}
 .modal-head{display:flex;align-items:flex-start;gap:12px;padding:18px 22px;border-bottom:1px solid var(--border);background:var(--head)}
 .modal-title{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent);letter-spacing:.03em}
@@ -64,8 +64,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:12
 .gd-sec:last-child{border-bottom:0}
 .gd-sec h3{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#e6edf3;margin-bottom:9px}
 .gd-sec h3 .ic{font-size:15px}
-.gd-row{display:grid;grid-template-columns:64px 1fr;gap:4px 10px;font-size:12.5px;line-height:1.65;margin-top:7px}
-.gd-row .lbl{color:var(--accent);font-weight:600;font-family:var(--mono);font-size:11px;padding-top:1px}
+.gd-row{display:grid;grid-template-columns:54px 1fr;gap:3px 12px;font-size:12.5px;line-height:1.55;margin-top:6px}
+.gd-row .lbl{color:var(--accent);font-weight:600;font-size:11px;padding-top:1px;white-space:nowrap}
 .gd-row .txt{color:var(--text)}
 .gd-row .txt b{color:#e6edf3}
 .gd-tip{margin-top:8px;background:rgba(216,162,74,.07);border-left:2px solid var(--accent2);border-radius:0 4px 4px 0;
@@ -116,6 +116,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:12
 .mem-sub{font-size:9px;color:var(--faint);font-family:var(--sans);display:block;margin-top:1px}
 .mem-upd{font-family:var(--mono);font-size:9px;color:var(--muted)}
 .mem-upd.help{border-bottom:1px dotted var(--faint);cursor:help}
+#tipBox{position:fixed;z-index:200;max-width:260px;background:#1a2230;color:#e6edf3;border:1px solid var(--border2);
+  border-radius:6px;padding:8px 11px;font-family:var(--sans);font-size:11.5px;line-height:1.55;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:none;opacity:0;transition:opacity .12s;display:none}
+#tipBox.show{opacity:1;display:block}
+#tipBox::after{content:"";position:absolute;left:var(--ax,50%);top:100%;transform:translateX(-50%);
+  border:6px solid transparent;border-top-color:#1a2230}
 
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:5px;display:flex;flex-direction:column;min-height:0}
 .panel.flex{flex:1 1 auto}
@@ -393,37 +399,37 @@ load();
 /* ===== 이용가이드 모달 ===== */
 const GUIDE_SECTIONS=[
   {ic:"📊",title:"상단 글로벌 지표 띠",rows:[
-    ["무엇","S&P500·나스닥·다우·SOX(필라델피아 반도체)·VIX(공포지수)·원/달러·달러인덱스·미10년물·WTI·금을 한 줄로 모았습니다."],
-    ["의미","밤사이 미국장과 거시 환경이 어땠는지를 보여줍니다. 특히 <b>SOX와 나스닥</b>은 한국 반도체·기술주의, <b>원/달러·미10년물</b>은 외국인 수급의 선행 신호입니다."],
-    ["활용","장 열기 전 가장 먼저 훑어보세요. SOX가 급등했다면 삼성전자·SK하이닉스에, VIX가 치솟았다면 위험회피 장세에 대비하는 식으로 그날의 '분위기'를 잡습니다."]],
-   tip:"VIX가 20을 넘어 급등하면 변동성 확대 구간입니다. 추격매수보다 현금 비중·분할 대응을 고려하세요."},
+    ["제공","S&P500·나스닥·다우·SOX(반도체)·VIX·원/달러·달러인덱스·미10년물·WTI·금."],
+    ["읽는 법","밤사이 미국장 흐름을 보여줍니다. SOX·나스닥은 반도체·기술주, 원/달러·미10년물은 외국인 수급의 선행 신호입니다."],
+    ["활용","장 열기 전 가장 먼저 확인하세요. 그날 시장 분위기를 잡는 출발점입니다."]],
+   tip:"VIX가 20을 넘어 급등하면 변동성 확대 구간 — 추격매수보다 현금·분할 대응이 유리합니다."},
   {ic:"📈",title:"코스피·코스닥 차트 + 기술적 요약",rows:[
-    ["무엇","지수의 일/주/월봉 차트에 이동평균선(5·20·50·120일)과 RSI(14)를 함께 표시하고, 하단에 <b>기술적 상태를 자동 요약</b>합니다."],
-    ["의미","헤드라인 숫자는 <b>KRX 공식 종가</b>입니다. 요약은 ①추세(이평선 배열) ②모멘텀(RSI) ③과열도(50일 이격도)를 종합해 '강한 매수우위~강한 매도우위' 5단계로 해석합니다."],
-    ["활용","개별 지표를 일일이 보지 않아도 현재 국면을 한눈에 파악할 수 있습니다. 차트에 마우스를 올리면 그 날짜의 값과 이평선을 확인할 수 있습니다."]],
-   tip:"종합의견이 '중립'으로 나오면, 추세와 과열 신호가 <b>서로 엇갈리는 구간</b>이라는 뜻입니다. 한쪽으로 단정하지 말고 신중히 접근하라는 신호로 읽으세요."},
+    ["제공","지수 차트에 이동평균선(5·20·50·120일)과 RSI(14)를 함께 표시하고 기술적 상태를 자동 요약합니다."],
+    ["읽는 법","헤드라인 숫자는 KRX 공식 종가입니다. 추세·모멘텀·과열도를 종합해 5단계 의견으로 정리합니다."],
+    ["활용","지표를 일일이 안 봐도 현재 국면을 한눈에 파악. 차트에 마우스를 올리면 날짜별 값이 나옵니다."]],
+   tip:"종합의견이 '중립'이면 추세와 과열 신호가 엇갈리는 구간 — 한쪽으로 단정하지 말라는 뜻입니다."},
   {ic:"🔥",title:"업종 히트맵",rows:[
-    ["무엇","전일 주요 9개 업종(전기전자·화학·금융·건설 등)의 등락률을 색으로 표시합니다. 빨강=상승, 파랑=하락."],
-    ["의미","돈이 어느 섹터로 몰리고 어디서 빠졌는지를 보여줍니다. 시장의 '주도 업종'을 파악하는 가장 빠른 방법입니다."],
-    ["활용","강한 빨강 업종은 그날의 주도 섹터일 가능성이 높습니다. 관심 종목이 속한 업종의 온도를 확인해 대응 강도를 조절하세요."]]},
-  {ic:"⚡",title:"전일 특징주 (급등·급락) + 시총 TOP20",rows:[
-    ["무엇","전일 가장 많이 오른/내린 종목과, 상단 띠로 흐르는 시가총액 상위 20종목을 보여줍니다."],
-    ["의미","급등주는 그날의 테마·이슈를 반영합니다. 시총 상위주의 등락은 지수 방향성에 직접적인 영향을 줍니다."],
-    ["활용","급등 사유를 뉴스와 연결해 테마를 읽고, 시총 대형주 흐름으로 지수의 큰 방향을 가늠하세요."]],
-   tip:"급등주 추격은 위험이 큽니다. '왜 올랐는지' 이유를 먼저 확인하는 용도로 활용하는 게 안전합니다."},
+    ["제공","전일 주요 9개 업종의 등락률을 색으로 표시합니다. 빨강은 상승, 파랑은 하락."],
+    ["읽는 법","돈이 어느 섹터로 몰리고 빠졌는지 보여줍니다. 주도 업종을 가장 빨리 찾는 방법입니다."],
+    ["활용","짙은 빨강 업종이 그날 주도 섹터일 가능성이 높습니다. 관심 종목의 업종 온도를 확인하세요."]]},
+  {ic:"⚡",title:"전일 특징주 · 시총 TOP20",rows:[
+    ["제공","전일 급등·급락 종목과, 상단 띠로 흐르는 시가총액 상위 20종목."],
+    ["읽는 법","급등주는 그날의 테마를 반영하고, 시총 상위주는 지수 방향에 직접 영향을 줍니다."],
+    ["활용","급등 사유를 뉴스와 엮어 테마를 읽고, 대형주 흐름으로 지수 방향을 가늠하세요."]],
+   tip:"급등주 추격은 위험합니다. 오른 '이유'를 먼저 확인하는 용도로 쓰는 게 안전합니다."},
   {ic:"💾",title:"메모리 현물가 (DRAM·NAND)",rows:[
-    ["무엇","TrendForce가 집계하는 DRAM·NAND 대표 품목의 현물(Spot) 가격과 전일대비 변동입니다."],
-    ["의미","메모리 현물가는 <b>삼성전자·SK하이닉스 실적의 선행지표</b>로 자주 인용됩니다. 가격 반등은 반도체 업황 개선 기대로 이어집니다."],
-    ["활용","반도체 대형주에 투자한다면 메모리 가격 추세를 함께 보세요. DRAM 현물가의 방향이 업황 심리를 보여줍니다."]],
-   tip:"NAND는 거래가 적어 매일 갱신되지 않습니다(갱신일자에 마우스를 올리면 안내가 나옵니다). 며칠째 같은 값이어도 정상입니다."},
-  {ic:"📰",title:"전일·새벽 주요 뉴스 (국내·국제)",rows:[
-    ["무엇","경제·증권 뉴스를 자동 수집해 <b>중요도와 최신성</b>으로 선별하고, 국내/국제로 분류해 보여줍니다."],
-    ["의미","밤사이 무슨 일이 있었는지를 빠르게 파악할 수 있습니다. 금리·환율·실적 등 시장에 영향 큰 키워드가 우선 노출됩니다."],
-    ["활용","제목만 훑어 그날의 핵심 이슈를 잡고, 관심 기사는 클릭해 원문을 확인하세요."]]},
-  {ic:"📅",title:"오늘의 일정 / 이벤트 · EWY",rows:[
-    ["무엇","오늘 예정된 한국·미국 주요 경제지표 발표 일정과, 미국 상장 한국 ETF(EWY) 시세를 보여줍니다."],
-    ["의미","CPI·고용지표 같은 발표는 시장 변동성을 키웁니다. EWY는 외국인이 보는 '한국 시장'의 야간 흐름을 반영합니다."],
-    ["활용","중요 지표 발표 시각엔 변동성에 대비하세요. EWY가 전일 한국장 마감 후 크게 움직였다면 오늘 갭(gap)의 힌트가 됩니다."]]},
+    ["제공","TrendForce가 집계하는 DRAM·NAND 대표 품목의 현물가와 전일대비 변동."],
+    ["읽는 법","메모리 현물가는 삼성전자·SK하이닉스 실적의 선행지표로 꼽힙니다. 반등은 업황 개선 신호입니다."],
+    ["활용","반도체 대형주 투자자라면 가격 추세를 함께 보세요. 업황 심리가 드러납니다."]],
+   tip:"NAND는 거래가 적어 매일 갱신되지 않습니다. 며칠째 같은 값이어도 정상입니다."},
+  {ic:"📰",title:"전일·새벽 주요 뉴스",rows:[
+    ["제공","경제·증권 뉴스를 중요도와 최신순으로 선별해 국내·국제로 나눠 보여줍니다."],
+    ["읽는 법","밤사이 이슈를 빠르게 파악. 금리·환율·실적 등 영향 큰 키워드가 먼저 노출됩니다."],
+    ["활용","제목으로 핵심 이슈를 훑고, 관심 기사는 클릭해 원문을 확인하세요."]]},
+  {ic:"📅",title:"오늘의 일정 · EWY",rows:[
+    ["제공","오늘 예정된 한국·미국 주요 경제지표 일정과, 미국 상장 한국 ETF(EWY) 시세."],
+    ["읽는 법","CPI·고용지표 발표는 변동성을 키웁니다. EWY는 외국인이 보는 한국 시장의 야간 흐름입니다."],
+    ["활용","중요 지표 시각엔 변동성에 대비. EWY가 크게 움직였다면 오늘 갭의 힌트가 됩니다."]]},
 ];
 function buildGuide(){
   const body=$('#guideBody');if(!body)return;
@@ -458,6 +464,28 @@ try{
     localStorage.setItem('ob_guide_seen','1');
   }
 }catch(e){ /* 시크릿 모드 등 저장 불가 시 무시 */ }
+
+/* ===== 커스텀 툴팁 (data-tip 속성, body에 부착되어 패널 overflow에 안 잘림) ===== */
+const tipBox=document.createElement('div');tipBox.id='tipBox';document.body.appendChild(tipBox);
+function showTip(el){
+  const t=el.getAttribute('data-tip');if(!t)return;
+  tipBox.textContent=t;tipBox.classList.add('show');
+  const r=el.getBoundingClientRect();
+  // 먼저 보이게 한 뒤 크기 측정
+  let bx=tipBox.getBoundingClientRect();
+  let left=r.left+r.width/2-bx.width/2;
+  left=Math.max(8,Math.min(left,window.innerWidth-bx.width-8));
+  let top=r.top-bx.height-9;
+  if(top<8)top=r.bottom+9; // 위 공간 부족하면 아래로
+  tipBox.style.left=left+'px';tipBox.style.top=top+'px';
+  // 화살표 위치를 대상 중앙에 맞춤
+  const ax=r.left+r.width/2-left;
+  tipBox.style.setProperty('--ax',Math.max(12,Math.min(ax,bx.width-12))+'px');
+}
+function hideTip(){tipBox.classList.remove('show');}
+document.addEventListener('mouseover',e=>{const el=e.target.closest('[data-tip]');if(el)showTip(el);});
+document.addEventListener('mouseout',e=>{if(e.target.closest('[data-tip]'))hideTip();});
+window.addEventListener('scroll',hideTip,true);
 
 function render(){
   // 기준시각 + 갱신 지연 경고 (오늘 KST 날짜가 아니면 노란색 '갱신 지연' 배지)
@@ -550,7 +578,7 @@ function renderMemory(){
   const rows=arr=>arr.map(r=>`<tr><td>${r.name}</td><td>$${fmtP(r.price)}</td><td>${chgCell(r.change_pct)}</td></tr>`).join('');
   const dramUpd=m.dram_updated?`<span class="mem-upd">DRAM 갱신 ${m.dram_updated} (GMT+8)</span>`:'';
   const nandTip="NAND 현물 시장은 거래가 적어 매일 갱신되지 않습니다. 표시된 값은 마지막 갱신일 기준입니다.";
-  const nandUpd=m.nand_updated?`<span class="mem-upd help" title="${nandTip}">NAND 갱신 ${m.nand_updated} (GMT+8) ⓘ</span>`:'';
+  const nandUpd=m.nand_updated?`<span class="mem-upd help" data-tip="${nandTip}">NAND 갱신 ${m.nand_updated} (GMT+8) ⓘ</span>`:'';
   el.innerHTML=`<table class="memtbl"><thead><tr><th>품목</th><th>현재가(USD)</th><th>전일대비</th></tr></thead>`+
     `<tbody>${rows(dram)}${rows(nand)}</tbody></table>`+
     `<div style="padding:6px 10px;display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--border)">${dramUpd}${nandUpd}</div>`;
