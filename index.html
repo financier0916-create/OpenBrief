@@ -41,6 +41,44 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:12
 .strip-badge span{font-size:8px;color:var(--muted);border:1px solid var(--border2);border-radius:3px;padding:1px 4px}
 .topbar .asof{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--border2);padding:3px 8px;border-radius:3px}
 .topbar .asof b{color:var(--accent)}
+.guide-btn{background:rgba(39,194,160,.1);color:var(--accent);border:1px solid rgba(39,194,160,.4);border-radius:4px;
+  padding:4px 11px;font-family:var(--sans);font-size:11px;font-weight:600;cursor:pointer;letter-spacing:.02em;transition:background .15s}
+.guide-btn:hover{background:rgba(39,194,160,.2)}
+
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(4,7,10,.78);backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center;padding:4vh 16px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--border2);border-radius:10px;width:min(860px,96vw);max-height:92vh;
+  display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(0,0,0,.6);overflow:hidden}
+.modal-head{display:flex;align-items:flex-start;gap:12px;padding:18px 22px;border-bottom:1px solid var(--border);background:var(--head)}
+.modal-title{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent);letter-spacing:.03em}
+.modal-sub{font-size:12px;color:var(--text2);margin-top:3px}
+.modal-x{margin-left:auto;background:transparent;border:1px solid var(--border2);color:var(--text2);border-radius:5px;
+  width:30px;height:30px;cursor:pointer;font-size:14px;flex:0 0 auto;transition:all .15s}
+.modal-x:hover{background:var(--panel2);color:var(--text)}
+.modal-body{overflow-y:auto;padding:8px 22px 18px;scrollbar-width:thin}
+.modal-body::-webkit-scrollbar{width:7px} .modal-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+.gd-intro{font-size:13px;line-height:1.7;color:var(--text);padding:16px 0 6px;border-bottom:1px solid var(--border)}
+.gd-intro b{color:var(--accent2)}
+.gd-sec{padding:15px 0;border-bottom:1px solid var(--border)}
+.gd-sec:last-child{border-bottom:0}
+.gd-sec h3{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#e6edf3;margin-bottom:9px}
+.gd-sec h3 .ic{font-size:15px}
+.gd-row{display:grid;grid-template-columns:64px 1fr;gap:4px 10px;font-size:12.5px;line-height:1.65;margin-top:7px}
+.gd-row .lbl{color:var(--accent);font-weight:600;font-family:var(--mono);font-size:11px;padding-top:1px}
+.gd-row .txt{color:var(--text)}
+.gd-row .txt b{color:#e6edf3}
+.gd-tip{margin-top:8px;background:rgba(216,162,74,.07);border-left:2px solid var(--accent2);border-radius:0 4px 4px 0;
+  padding:7px 11px;font-size:12px;line-height:1.6;color:var(--text)}
+.gd-tip b{color:var(--accent2)}
+.gd-flow{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.gd-flow .step{flex:1 1 0;min-width:150px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:10px 12px}
+.gd-flow .step .no{font-family:var(--mono);font-size:10px;color:var(--accent);font-weight:600}
+.gd-flow .step .t{font-size:12px;color:var(--text);margin-top:3px;line-height:1.5}
+.modal-foot{display:flex;align-items:center;gap:12px;padding:13px 22px;border-top:1px solid var(--border);background:var(--head)}
+.modal-foot span{font-size:10.5px;color:var(--muted);line-height:1.5;flex:1 1 auto}
+.modal-ok{background:var(--accent);color:#04110d;border:0;border-radius:5px;padding:8px 20px;font-weight:700;font-size:12px;cursor:pointer;flex:0 0 auto}
+.modal-ok:hover{filter:brightness(1.08)}
 
 .strip{display:flex;background:var(--head);overflow-x:auto;flex:1 1 auto;scrollbar-width:thin}
 .tickerrow{display:flex;align-items:stretch;background:#0a0e13;border-bottom:1px solid var(--border);flex:0 0 auto;overflow:hidden}
@@ -197,12 +235,30 @@ canvas{display:block;width:100%;height:100%;cursor:crosshair}
   <div class="topbar">
     <div class="brand"><span class="logo">OPEN BRIEF</span><span class="sub">장전 브리핑 터미널 · 전일 마감 기준</span></div>
     <div class="asof">기준시각 <b id="asof">—</b></div>
+    <button class="guide-btn" id="guideBtn" type="button">📖 이용가이드</button>
     <div class="copyright" id="copyright">© 2026 MISTERDOLLAR. All rights reserved.</div>
   </div>
 
   <div class="striprow">
     <div class="strip-badge">전일 종가 기준 <span>SNAPSHOT</span></div>
     <div class="strip" id="strip"></div>
+  </div>
+
+  <div class="modal-overlay" id="guideModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="이용가이드">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title">OPEN BRIEF 이용가이드</div>
+          <div class="modal-sub">장 시작 전 5분, 한 화면으로 끝내는 장전 브리핑</div>
+        </div>
+        <button class="modal-x" id="guideClose" type="button" aria-label="닫기">✕</button>
+      </div>
+      <div class="modal-body" id="guideBody"></div>
+      <div class="modal-foot">
+        <span>※ 모든 정보는 투자 참고용이며, 투자 권유가 아닙니다. 데이터는 전일 마감 기준 자동 수집됩니다.</span>
+        <button class="modal-ok" id="guideOk" type="button">시작하기</button>
+      </div>
+    </div>
   </div>
 
   <div class="tickerrow">
@@ -333,6 +389,75 @@ async function load(){
   render();
 }
 load();
+
+/* ===== 이용가이드 모달 ===== */
+const GUIDE_SECTIONS=[
+  {ic:"📊",title:"상단 글로벌 지표 띠",rows:[
+    ["무엇","S&P500·나스닥·다우·SOX(필라델피아 반도체)·VIX(공포지수)·원/달러·달러인덱스·미10년물·WTI·금을 한 줄로 모았습니다."],
+    ["의미","밤사이 미국장과 거시 환경이 어땠는지를 보여줍니다. 특히 <b>SOX와 나스닥</b>은 한국 반도체·기술주의, <b>원/달러·미10년물</b>은 외국인 수급의 선행 신호입니다."],
+    ["활용","장 열기 전 가장 먼저 훑어보세요. SOX가 급등했다면 삼성전자·SK하이닉스에, VIX가 치솟았다면 위험회피 장세에 대비하는 식으로 그날의 '분위기'를 잡습니다."]],
+   tip:"VIX가 20을 넘어 급등하면 변동성 확대 구간입니다. 추격매수보다 현금 비중·분할 대응을 고려하세요."},
+  {ic:"📈",title:"코스피·코스닥 차트 + 기술적 요약",rows:[
+    ["무엇","지수의 일/주/월봉 차트에 이동평균선(5·20·50·120일)과 RSI(14)를 함께 표시하고, 하단에 <b>기술적 상태를 자동 요약</b>합니다."],
+    ["의미","헤드라인 숫자는 <b>KRX 공식 종가</b>입니다. 요약은 ①추세(이평선 배열) ②모멘텀(RSI) ③과열도(50일 이격도)를 종합해 '강한 매수우위~강한 매도우위' 5단계로 해석합니다."],
+    ["활용","개별 지표를 일일이 보지 않아도 현재 국면을 한눈에 파악할 수 있습니다. 차트에 마우스를 올리면 그 날짜의 값과 이평선을 확인할 수 있습니다."]],
+   tip:"종합의견이 '중립'으로 나오면, 추세와 과열 신호가 <b>서로 엇갈리는 구간</b>이라는 뜻입니다. 한쪽으로 단정하지 말고 신중히 접근하라는 신호로 읽으세요."},
+  {ic:"🔥",title:"업종 히트맵",rows:[
+    ["무엇","전일 주요 9개 업종(전기전자·화학·금융·건설 등)의 등락률을 색으로 표시합니다. 빨강=상승, 파랑=하락."],
+    ["의미","돈이 어느 섹터로 몰리고 어디서 빠졌는지를 보여줍니다. 시장의 '주도 업종'을 파악하는 가장 빠른 방법입니다."],
+    ["활용","강한 빨강 업종은 그날의 주도 섹터일 가능성이 높습니다. 관심 종목이 속한 업종의 온도를 확인해 대응 강도를 조절하세요."]]},
+  {ic:"⚡",title:"전일 특징주 (급등·급락) + 시총 TOP20",rows:[
+    ["무엇","전일 가장 많이 오른/내린 종목과, 상단 띠로 흐르는 시가총액 상위 20종목을 보여줍니다."],
+    ["의미","급등주는 그날의 테마·이슈를 반영합니다. 시총 상위주의 등락은 지수 방향성에 직접적인 영향을 줍니다."],
+    ["활용","급등 사유를 뉴스와 연결해 테마를 읽고, 시총 대형주 흐름으로 지수의 큰 방향을 가늠하세요."]],
+   tip:"급등주 추격은 위험이 큽니다. '왜 올랐는지' 이유를 먼저 확인하는 용도로 활용하는 게 안전합니다."},
+  {ic:"💾",title:"메모리 현물가 (DRAM·NAND)",rows:[
+    ["무엇","TrendForce가 집계하는 DRAM·NAND 대표 품목의 현물(Spot) 가격과 전일대비 변동입니다."],
+    ["의미","메모리 현물가는 <b>삼성전자·SK하이닉스 실적의 선행지표</b>로 자주 인용됩니다. 가격 반등은 반도체 업황 개선 기대로 이어집니다."],
+    ["활용","반도체 대형주에 투자한다면 메모리 가격 추세를 함께 보세요. DRAM 현물가의 방향이 업황 심리를 보여줍니다."]],
+   tip:"NAND는 거래가 적어 매일 갱신되지 않습니다(갱신일자에 마우스를 올리면 안내가 나옵니다). 며칠째 같은 값이어도 정상입니다."},
+  {ic:"📰",title:"전일·새벽 주요 뉴스 (국내·국제)",rows:[
+    ["무엇","경제·증권 뉴스를 자동 수집해 <b>중요도와 최신성</b>으로 선별하고, 국내/국제로 분류해 보여줍니다."],
+    ["의미","밤사이 무슨 일이 있었는지를 빠르게 파악할 수 있습니다. 금리·환율·실적 등 시장에 영향 큰 키워드가 우선 노출됩니다."],
+    ["활용","제목만 훑어 그날의 핵심 이슈를 잡고, 관심 기사는 클릭해 원문을 확인하세요."]]},
+  {ic:"📅",title:"오늘의 일정 / 이벤트 · EWY",rows:[
+    ["무엇","오늘 예정된 한국·미국 주요 경제지표 발표 일정과, 미국 상장 한국 ETF(EWY) 시세를 보여줍니다."],
+    ["의미","CPI·고용지표 같은 발표는 시장 변동성을 키웁니다. EWY는 외국인이 보는 '한국 시장'의 야간 흐름을 반영합니다."],
+    ["활용","중요 지표 발표 시각엔 변동성에 대비하세요. EWY가 전일 한국장 마감 후 크게 움직였다면 오늘 갭(gap)의 힌트가 됩니다."]]},
+];
+function buildGuide(){
+  const body=$('#guideBody');if(!body)return;
+  let h=`<div class="gd-intro">「OPEN BRIEF」는 한국 증시 개장 전, 흩어져 있는 정보를 <b>한 화면에 모아</b> 매일 아침 자동으로 정리해 드리는 장전 브리핑 터미널입니다. 어제 마감·밤사이 미국장·환율·뉴스·메모리 가격까지, 장 시작 전 꼭 확인해야 할 것들을 5분 안에 훑을 수 있도록 만들었습니다.</div>`;
+  h+=`<div class="gd-sec"><h3><span class="ic">⏱️</span>추천 활용 순서</h3><div class="gd-flow">
+    <div class="step"><div class="no">STEP 1</div><div class="t">상단 글로벌 지표로 <b>밤사이 분위기</b> 파악</div></div>
+    <div class="step"><div class="no">STEP 2</div><div class="t">뉴스·특징주로 <b>오늘의 이슈·테마</b> 체크</div></div>
+    <div class="step"><div class="no">STEP 3</div><div class="t">지수 차트·기술적 요약으로 <b>시장 국면</b> 확인</div></div>
+    <div class="step"><div class="no">STEP 4</div><div class="t">관심 업종·메모리·일정으로 <b>대응 강도</b> 조절</div></div>
+  </div></div>`;
+  for(const s of GUIDE_SECTIONS){
+    h+=`<div class="gd-sec"><h3><span class="ic">${s.ic}</span>${s.title}</h3>`;
+    for(const [lbl,txt] of s.rows){
+      h+=`<div class="gd-row"><span class="lbl">${lbl}</span><span class="txt">${txt}</span></div>`;
+    }
+    if(s.tip)h+=`<div class="gd-tip">💡 <b>활용 팁</b> · ${s.tip}</div>`;
+    h+=`</div>`;
+  }
+  body.innerHTML=h;
+}
+function openGuide(){buildGuide();const m=$('#guideModal');m.classList.add('open');m.setAttribute('aria-hidden','false');}
+function closeGuide(){const m=$('#guideModal');m.classList.remove('open');m.setAttribute('aria-hidden','true');}
+$('#guideBtn')&&($('#guideBtn').onclick=openGuide);
+$('#guideClose')&&($('#guideClose').onclick=closeGuide);
+$('#guideOk')&&($('#guideOk').onclick=closeGuide);
+$('#guideModal')&&($('#guideModal').addEventListener('click',e=>{if(e.target.id==='guideModal')closeGuide();}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeGuide();});
+// 첫 방문 시 자동 노출 (localStorage로 재방문 여부 기록)
+try{
+  if(!localStorage.getItem('ob_guide_seen')){
+    openGuide();
+    localStorage.setItem('ob_guide_seen','1');
+  }
+}catch(e){ /* 시크릿 모드 등 저장 불가 시 무시 */ }
 
 function render(){
   // 기준시각 + 갱신 지연 경고 (오늘 KST 날짜가 아니면 노란색 '갱신 지연' 배지)
