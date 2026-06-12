@@ -195,6 +195,36 @@ def collect_index_official(last_day, key):
             fail(f"공식지수 {idx_nm}", e)
     return out or None
 
+# ── 차트 보정: 야후 마지막 봉이 공식 거래일보다 뒤처지면 공식 종가로 보충 ──
+# 야후 일봉은 KRX 공식 종가보다 하루 늦게 갱신될 때가 있다. 그러면 헤드라인(공식)과
+# 차트·기술적분석(야후)이 서로 다른 날짜를 가리킨다. 이를 일치시켜 모두 '전일(공식 거래일)'
+# 기준이 되도록, 부족한 최신 봉을 공식 종가로 보충(또는 같은 날짜면 종가를 공식값으로 보정).
+def reconcile_chart_with_official(charts, official, trade_day):
+    if not charts or not official:
+        return
+    try:
+        off_ts = ts_ms(datetime.strptime(trade_day, "%Y%m%d").date())
+    except Exception:
+        return
+    name_map = {"kospi": "코스피", "kosdaq": "코스닥"}
+    for okey, cname in name_map.items():
+        ov = official.get(okey); ch = charts.get(cname)
+        if not ov or not ch or not ch.get("ohlcv"):
+            continue
+        oc = ov.get("last")
+        if oc is None:
+            continue
+        bars = ch["ohlcv"]; last_bar = bars[-1]; last_ts = last_bar[0]
+        if last_ts < off_ts:
+            oc = round(oc, 2)
+            bars.append([off_ts, oc, oc, oc, oc, 0])   # 종가만 있는 보충 봉(평봉)
+            ok(f"차트 보충 {cname}: 공식 거래일 봉 추가 ({oc})")
+        elif last_ts == off_ts and abs(last_bar[4] - oc) > 0.01:
+            last_bar[2] = round(max(last_bar[2], oc), 2)
+            last_bar[3] = round(min(last_bar[3], oc), 2)
+            last_bar[4] = round(oc, 2)
+            ok(f"차트 보정 {cname}: 마지막 봉 종가 보정 ({oc})")
+
 # ── 뉴스 (RSS) ─────────────────────────────────────────────────────────
 DEFAULT_FEEDS = [
     ("연합뉴스 경제", "https://www.yna.co.kr/rss/economy.xml"),
@@ -417,6 +447,8 @@ def main():
             else:
                 snap["indices"][k]={"name":names[k],"last":v["last"],
                                     "change_pct":v["change_pct"],"official":True}
+    # 차트 마지막 봉을 공식 거래일·종가에 맞춰 보충/보정 (TA·헤드라인과 날짜 일치)
+    reconcile_chart_with_official(snap.get("charts"), official, last)
     snap["global"] = collect_global()
     snap["movers"] = collect_movers(last, prev, key)
     snap["sectors"] = collect_sectors(last, key)
